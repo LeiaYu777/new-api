@@ -139,8 +139,9 @@ func main() {
 	}
 
 	if os.Getenv("ENABLE_PPROF") == "true" {
+		pprofAddr := common.GetEnvOrDefaultString("PPROF_BIND_ADDR", "127.0.0.1:8005")
 		gopool.Go(func() {
-			log.Println(http.ListenAndServe("0.0.0.0:8005", nil))
+			log.Println(http.ListenAndServe(pprofAddr, nil))
 		})
 		go common.Monitor()
 		common.SysLog("pprof enabled")
@@ -153,6 +154,11 @@ func main() {
 
 	// Initialize HTTP server
 	server := gin.New()
+	trustedProxies := getTrustedProxies()
+	if err := server.SetTrustedProxies(trustedProxies); err != nil {
+		common.FatalLog("failed to set trusted proxies: " + err.Error())
+		return
+	}
 	server.Use(gin.CustomRecovery(func(c *gin.Context, err any) {
 		common.SysLog(fmt.Sprintf("panic detected: %v", err))
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -169,13 +175,22 @@ func main() {
 	server.Use(middleware.I18n())
 	middleware.SetUpLogger(server)
 	// Initialize session store
+	secureCookie := common.GetEnvOrDefaultBool("SESSION_COOKIE_SECURE", os.Getenv("GIN_MODE") != "debug")
+	sameSite := http.SameSiteLaxMode
+	switch strings.ToLower(common.GetEnvOrDefaultString("SESSION_COOKIE_SAMESITE", "lax")) {
+	case "strict":
+		sameSite = http.SameSiteStrictMode
+	case "none":
+		sameSite = http.SameSiteNoneMode
+	}
 	store := cookie.NewStore([]byte(common.SessionSecret))
 	store.Options(sessions.Options{
 		Path:     "/",
 		MaxAge:   2592000, // 30 days
 		HttpOnly: true,
-		Secure:   false,
-		SameSite: http.SameSiteStrictMode,
+		Secure:   secureCookie,
+		SameSite: sameSite,
+		Domain:   strings.TrimSpace(common.GetEnvOrDefaultString("SESSION_COOKIE_DOMAIN", "")),
 	})
 	server.Use(sessions.Sessions("session", store))
 
@@ -313,4 +328,19 @@ func InitResources() error {
 	}
 
 	return nil
+}
+
+func getTrustedProxies() []string {
+	raw := strings.TrimSpace(common.GetEnvOrDefaultString("TRUSTED_PROXIES", ""))
+	if raw == "" {
+		return []string{}
+	}
+	proxies := make([]string, 0)
+	for _, part := range strings.Split(raw, ",") {
+		proxy := strings.TrimSpace(part)
+		if proxy != "" {
+			proxies = append(proxies, proxy)
+		}
+	}
+	return proxies
 }

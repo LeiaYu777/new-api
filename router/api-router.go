@@ -14,12 +14,18 @@ import (
 func SetApiRouter(router *gin.Engine) {
 	apiRouter := router.Group("/api")
 	apiRouter.Use(middleware.RouteTag("api"))
+	apiRouter.Use(middleware.TenantContext())
+	apiRouter.Use(middleware.TenantAudit())
 	apiRouter.Use(gzip.Gzip(gzip.DefaultCompression))
 	apiRouter.Use(middleware.BodyStorageCleanup()) // 清理请求体存储
 	apiRouter.Use(middleware.GlobalAPIRateLimit())
 	{
-		apiRouter.GET("/setup", controller.GetSetup)
-		apiRouter.POST("/setup", controller.PostSetup)
+		setupRoute := apiRouter.Group("/setup")
+		setupRoute.Use(middleware.SetupGuard())
+		{
+			setupRoute.GET("", controller.GetSetup)
+			setupRoute.POST("", controller.PostSetup)
+		}
 		apiRouter.GET("/status", controller.GetStatus)
 		apiRouter.GET("/uptime/status", controller.GetUptimeKumaStatus)
 		apiRouter.GET("/models", middleware.UserAuth(), controller.DashboardListModels)

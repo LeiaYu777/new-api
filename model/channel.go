@@ -20,8 +20,10 @@ import (
 
 type Channel struct {
 	Id                 int     `json:"id"`
+	TenantId           string  `json:"tenant_id" gorm:"type:varchar(64);index;default:'default'"`
 	Type               int     `json:"type" gorm:"default:0"`
 	Key                string  `json:"key" gorm:"not null"`
+	KeyHash            string  `json:"-" gorm:"type:char(64);index"`
 	OpenAIOrganization *string `json:"openai_organization"`
 	TestModel          *string `json:"test_model"`
 	Status             int     `json:"status" gorm:"default:1"`
@@ -76,6 +78,46 @@ func (c ChannelInfo) Value() (driver.Value, error) {
 func (c *ChannelInfo) Scan(value interface{}) error {
 	bytesValue, _ := value.([]byte)
 	return common.Unmarshal(bytesValue, c)
+}
+
+func (channel *Channel) BeforeSave(tx *gorm.DB) error {
+	if strings.TrimSpace(channel.TenantId) == "" {
+		channel.TenantId = common.GetDefaultTenantID()
+	}
+	key := strings.TrimSpace(channel.Key)
+	if key == "" {
+		return nil
+	}
+	if common.IsEncryptedSecret(key) {
+		plain, err := common.DecryptSecret(key)
+		if err != nil {
+			return err
+		}
+		channel.KeyHash = common.GenerateHMAC(plain)
+		return nil
+	}
+	channel.KeyHash = common.GenerateHMAC(key)
+	encrypted, err := common.EncryptSecret(key)
+	if err != nil {
+		return err
+	}
+	channel.Key = encrypted
+	return nil
+}
+
+func (channel *Channel) AfterFind(tx *gorm.DB) error {
+	if channel.Key == "" {
+		return nil
+	}
+	plain, err := common.DecryptSecret(channel.Key)
+	if err != nil {
+		return err
+	}
+	channel.Key = plain
+	if channel.KeyHash == "" && plain != "" {
+		channel.KeyHash = common.GenerateHMAC(plain)
+	}
+	return nil
 }
 
 func (channel *Channel) GetKeys() []string {
@@ -292,10 +334,12 @@ func GetChannelsByTag(tag string, idSort bool, selectAll bool) ([]*Channel, erro
 func SearchChannels(keyword string, group string, model string, idSort bool) ([]*Channel, error) {
 	var channels []*Channel
 	modelsCol := "`models`"
+	keyHashCol := "`key_hash`"
 
 	// 如果是 PostgreSQL，使用双引号
 	if common.UsingPostgreSQL {
 		modelsCol = `"models"`
+		keyHashCol = `"key_hash"`
 	}
 
 	baseURLCol := "`base_url`"
@@ -315,6 +359,7 @@ func SearchChannels(keyword string, group string, model string, idSort bool) ([]
 	// 构造WHERE子句
 	var whereClause string
 	var args []interface{}
+	keyHash := common.GenerateHMAC(keyword)
 	if group != "" && group != "null" {
 		var groupCondition string
 		if common.UsingMySQL {
@@ -323,11 +368,11 @@ func SearchChannels(keyword string, group string, model string, idSort bool) ([]
 			// sqlite, PostgreSQL
 			groupCondition = `(',' || ` + commonGroupCol + ` || ',') LIKE ?`
 		}
-		whereClause = "(id = ? OR name LIKE ? OR " + commonKeyCol + " = ? OR " + baseURLCol + " LIKE ?) AND " + modelsCol + ` LIKE ? AND ` + groupCondition
-		args = append(args, common.String2Int(keyword), "%"+keyword+"%", keyword, "%"+keyword+"%", "%"+model+"%", "%,"+group+",%")
+		whereClause = "(id = ? OR name LIKE ? OR " + keyHashCol + " = ? OR " + baseURLCol + " LIKE ?) AND " + modelsCol + ` LIKE ? AND ` + groupCondition
+		args = append(args, common.String2Int(keyword), "%"+keyword+"%", keyHash, "%"+keyword+"%", "%"+model+"%", "%,"+group+",%")
 	} else {
-		whereClause = "(id = ? OR name LIKE ? OR " + commonKeyCol + " = ? OR " + baseURLCol + " LIKE ?) AND " + modelsCol + " LIKE ?"
-		args = append(args, common.String2Int(keyword), "%"+keyword+"%", keyword, "%"+keyword+"%", "%"+model+"%")
+		whereClause = "(id = ? OR name LIKE ? OR " + keyHashCol + " = ? OR " + baseURLCol + " LIKE ?) AND " + modelsCol + " LIKE ?"
+		args = append(args, common.String2Int(keyword), "%"+keyword+"%", keyHash, "%"+keyword+"%", "%"+model+"%")
 	}
 
 	// 执行查询

@@ -87,11 +87,16 @@ func Login(c *gin.Context) {
 // setup session & cookies and then return user info
 func setupLogin(user *model.User, c *gin.Context) {
 	session := sessions.Default(c)
+	tenantId := strings.TrimSpace(user.TenantId)
+	if tenantId == "" {
+		tenantId = common.GetDefaultTenantID()
+	}
 	session.Set("id", user.Id)
 	session.Set("username", user.Username)
 	session.Set("role", user.Role)
 	session.Set("status", user.Status)
 	session.Set("group", user.Group)
+	session.Set("tenant_id", tenantId)
 	err := session.Save()
 	if err != nil {
 		common.ApiErrorI18n(c, i18n.MsgUserSessionSaveFailed)
@@ -107,6 +112,7 @@ func setupLogin(user *model.User, c *gin.Context) {
 			"role":         user.Role,
 			"status":       user.Status,
 			"group":        user.Group,
+			"tenant_id":    tenantId,
 		},
 	})
 }
@@ -175,6 +181,7 @@ func Register(c *gin.Context) {
 		DisplayName: user.Username,
 		InviterId:   inviterId,
 		Role:        common.RoleCommonUser, // 明确设置角色为普通用户
+		TenantId:    common.GetDefaultTenantID(),
 	}
 	if common.EmailVerificationEnabled {
 		cleanUser.Email = user.Email
@@ -200,6 +207,7 @@ func Register(c *gin.Context) {
 		}
 		// 生成默认令牌
 		token := model.Token{
+			TenantId:           insertedUser.TenantId,
 			UserId:             insertedUser.Id, // 使用插入后的用户ID
 			Name:               cleanUser.Username + "的初始令牌",
 			Key:                key,

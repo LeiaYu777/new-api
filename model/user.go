@@ -22,6 +22,7 @@ const UserNameMaxLength = 20
 // Otherwise, the sensitive information will be saved on local storage in plain text!
 type User struct {
 	Id               int            `json:"id"`
+	TenantId         string         `json:"tenant_id" gorm:"type:varchar(64);index;default:'default'"`
 	Username         string         `json:"username" gorm:"unique;index" validate:"max=20"`
 	Password         string         `json:"password" gorm:"not null;" validate:"min=8,max=20"`
 	OriginalPassword string         `json:"original_password" gorm:"-:all"` // this field is only for Password change verification, don't save it to database!
@@ -55,6 +56,7 @@ type User struct {
 func (user *User) ToBaseUser() *UserBase {
 	cache := &UserBase{
 		Id:       user.Id,
+		TenantId: user.TenantId,
 		Group:    user.Group,
 		Quota:    user.Quota,
 		Status:   user.Status,
@@ -63,6 +65,13 @@ func (user *User) ToBaseUser() *UserBase {
 		Email:    user.Email,
 	}
 	return cache
+}
+
+func (user *User) BeforeCreate(tx *gorm.DB) error {
+	if strings.TrimSpace(user.TenantId) == "" {
+		user.TenantId = common.GetDefaultTenantID()
+	}
+	return nil
 }
 
 func (user *User) GetAccessToken() string {

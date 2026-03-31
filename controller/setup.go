@@ -115,6 +115,7 @@ func PostSetup(c *gin.Context) {
 			Password:    hashedPassword,
 			Role:        common.RoleRootUser,
 			Status:      common.UserStatusEnabled,
+			TenantId:    common.GetDefaultTenantID(),
 			DisplayName: "Root User",
 			AccessToken: nil,
 			Quota:       100000000,

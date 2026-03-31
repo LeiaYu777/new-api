@@ -62,6 +62,7 @@ import {
   Hunyuan,
   Xinference,
 } from '@lobehub/icons';
+import SafeHtml from '../../components/common/SafeHtml';
 
 const { Text } = Typography;
 
@@ -342,9 +343,9 @@ const Home = () => {
               className='w-full h-screen border-none'
             />
           ) : (
-            <div
+            <SafeHtml
               className='mt-[60px]'
-              dangerouslySetInnerHTML={{ __html: homePageContent }}
+              html={homePageContent}
             />
           )}
         </div>

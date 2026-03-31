@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  new-api-control:
+    image: calciumion/new-api:latest
+    restart: always
+    command: --log-dir /app/logs
+    environment:
+      - NODE_TYPE=master
+      - NODE_ROLE=control
+      - SQL_DSN=${SQL_DSN}
+      - REDIS_CONN_STRING=${REDIS_CONN_STRING}
+      - SESSION_SECRET=${SESSION_SECRET}
+      - CRYPTO_SECRET=${CRYPTO_SECRET}
+      - MULTI_TENANT_ENABLED=${MULTI_TENANT_ENABLED:-true}
+    volumes:
+      - ./logs/control:/app/logs
+
+  new-api-relay:
+    image: calciumion/new-api:latest
+    restart: always
+    command: --log-dir /app/logs
+    environment:
+      - NODE_TYPE=slave
+      - NODE_ROLE=relay
+      - SQL_DSN=${SQL_DSN}
+      - REDIS_CONN_STRING=${REDIS_CONN_STRING}
+      - SESSION_SECRET=${SESSION_SECRET}
+      - CRYPTO_SECRET=${CRYPTO_SECRET}
+      - MULTI_TENANT_ENABLED=${MULTI_TENANT_ENABLED:-true}
+    volumes:
+      - ./logs/relay:/app/logs
+
+  new-api-worker:
+    image: calciumion/new-api:latest
+    restart: always
+    command: --log-dir /app/logs
+    environment:
+      - NODE_TYPE=slave
+      - NODE_ROLE=worker
+      - SQL_DSN=${SQL_DSN}
+      - REDIS_CONN_STRING=${REDIS_CONN_STRING}
+      - SESSION_SECRET=${SESSION_SECRET}
+      - CRYPTO_SECRET=${CRYPTO_SECRET}
+      - MULTI_TENANT_ENABLED=${MULTI_TENANT_ENABLED:-true}
+    volumes:
+      - ./logs/worker:/app/logs

@@ -91,9 +91,12 @@ func GetCodexChannelUsage(c *gin.Context) {
 
 			encoded, encErr := common.Marshal(oauthKey)
 			if encErr == nil {
-				_ = model.DB.Model(&model.Channel{}).Where("id = ?", ch.Id).Update("key", string(encoded)).Error
-				model.InitChannelCache()
-				service.ResetProxyClientCache()
+				encryptedKey, encryptErr := common.EncryptSecret(string(encoded))
+				if encryptErr == nil {
+					_ = model.DB.Model(&model.Channel{}).Where("id = ?", ch.Id).Update("key", encryptedKey).Error
+					model.InitChannelCache()
+					service.ResetProxyClientCache()
+				}
 			}
 
 			ctx2, cancel2 := context.WithTimeout(c.Request.Context(), 15*time.Second)

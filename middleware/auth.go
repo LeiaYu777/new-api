@@ -63,6 +63,7 @@ func authHelper(c *gin.Context, minRole int) {
 			role = user.Role
 			id = user.Id
 			status = user.Status
+			c.Set("tenant_id", strings.TrimSpace(user.TenantId))
 			useAccessToken = true
 		} else {
 			c.JSON(http.StatusOK, gin.H{
@@ -125,6 +126,30 @@ func authHelper(c *gin.Context, minRole int) {
 		c.Abort()
 		return
 	}
+	tenantID := strings.TrimSpace(c.GetString("tenant_id"))
+	if tenantID == "" {
+		if sessionTenant, ok := session.Get("tenant_id").(string); ok {
+			tenantID = strings.TrimSpace(sessionTenant)
+		}
+	}
+	if tenantID == "" {
+		tenantID = common.GetDefaultTenantID()
+	}
+	requestTenant := strings.TrimSpace(c.GetHeader(common.TenantHeaderKey))
+	if requestTenant == "" {
+		requestTenant = strings.TrimSpace(c.Query("tenant_id"))
+	}
+	if requestTenant == "" {
+		requestTenant = tenantID
+	}
+	if common.MultiTenantEnabled && role.(int) < common.RoleRootUser && requestTenant != tenantID {
+		c.JSON(http.StatusForbidden, gin.H{
+			"success": false,
+			"message": "租户不匹配，无权访问该租户资源",
+		})
+		c.Abort()
+		return
+	}
 	// 防止不同newapi版本冲突，导致数据不通用
 	c.Header("Auth-Version", "864b7076dbcd0a3c01b5520316720ebf")
 	c.Set("username", username)
@@ -132,6 +157,7 @@ func authHelper(c *gin.Context, minRole int) {
 	c.Set("id", id)
 	c.Set("group", session.Get("group"))
 	c.Set("user_group", session.Get("group"))
+	c.Set("tenant_id", requestTenant)
 	c.Set("use_access_token", useAccessToken)
 
 	c.Next()
@@ -143,6 +169,9 @@ func TryUserAuth() func(c *gin.Context) {
 		id := session.Get("id")
 		if id != nil {
 			c.Set("id", id)
+		}
+		if tenantID, ok := session.Get("tenant_id").(string); ok && strings.TrimSpace(tenantID) != "" {
+			c.Set("tenant_id", strings.TrimSpace(tenantID))
 		}
 		c.Next()
 	}
@@ -241,6 +270,23 @@ func TokenAuthReadOnly() func(c *gin.Context) {
 		c.Set("id", token.UserId)
 		c.Set("token_id", token.Id)
 		c.Set("token_key", token.Key)
+		tenantID := strings.TrimSpace(token.TenantId)
+		if tenantID == "" {
+			tenantID = common.GetDefaultTenantID()
+		}
+		requestTenant := strings.TrimSpace(c.GetHeader(common.TenantHeaderKey))
+		if requestTenant == "" {
+			requestTenant = strings.TrimSpace(c.Query("tenant_id"))
+		}
+		if common.MultiTenantEnabled && requestTenant != "" && requestTenant != tenantID {
+			c.JSON(http.StatusForbidden, gin.H{
+				"success": false,
+				"message": "租户不匹配，无权访问该租户资源",
+			})
+			c.Abort()
+			return
+		}
+		c.Set("tenant_id", tenantID)
 		c.Next()
 	}
 }
@@ -341,6 +387,19 @@ func TokenAuth() func(c *gin.Context) {
 		}
 
 		userCache.WriteContext(c)
+		tenantID := strings.TrimSpace(token.TenantId)
+		if tenantID == "" {
+			tenantID = common.GetDefaultTenantID()
+		}
+		requestTenant := strings.TrimSpace(c.GetHeader(common.TenantHeaderKey))
+		if requestTenant == "" {
+			requestTenant = strings.TrimSpace(c.Query("tenant_id"))
+		}
+		if common.MultiTenantEnabled && requestTenant != "" && requestTenant != tenantID {
+			abortWithOpenAiMessage(c, http.StatusForbidden, "租户不匹配，无权访问该租户资源", types.ErrorCodeAccessDenied)
+			return
+		}
+		c.Set("tenant_id", tenantID)
 
 		userGroup := userCache.Group
 		tokenGroup := token.Group
@@ -389,6 +448,11 @@ func SetupContextForToken(c *gin.Context, token *model.Token, parts ...string) e
 	}
 	common.SetContextKey(c, constant.ContextKeyTokenGroup, token.Group)
 	common.SetContextKey(c, constant.ContextKeyTokenCrossGroupRetry, token.CrossGroupRetry)
+	tenantID := strings.TrimSpace(token.TenantId)
+	if tenantID == "" {
+		tenantID = common.GetDefaultTenantID()
+	}
+	c.Set("tenant_id", tenantID)
 	if len(parts) > 1 {
 		if model.IsAdmin(token.UserId) {
 			c.Set("specific_channel_id", parts[1])

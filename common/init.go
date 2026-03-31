@@ -82,6 +82,16 @@ func InitEnv() {
 	DebugEnabled = os.Getenv("DEBUG") == "true"
 	MemoryCacheEnabled = os.Getenv("MEMORY_CACHE_ENABLED") == "true"
 	IsMasterNode = os.Getenv("NODE_TYPE") != "slave"
+	MultiTenantEnabled = GetEnvOrDefaultBool("MULTI_TENANT_ENABLED", false)
+	DefaultTenantId = strings.TrimSpace(GetEnvOrDefaultString("DEFAULT_TENANT_ID", "default"))
+	if DefaultTenantId == "" {
+		DefaultTenantId = "default"
+	}
+	TenantHeaderKey = strings.TrimSpace(GetEnvOrDefaultString("TENANT_HEADER_KEY", "X-Tenant-Id"))
+	if TenantHeaderKey == "" {
+		TenantHeaderKey = "X-Tenant-Id"
+	}
+	TenantAuditEnabled = GetEnvOrDefaultBool("TENANT_AUDIT_ENABLED", true)
 	TLSInsecureSkipVerify = GetEnvOrDefaultBool("TLS_INSECURE_SKIP_VERIFY", false)
 	if TLSInsecureSkipVerify {
 		if tr, ok := http.DefaultTransport.(*http.Transport); ok && tr != nil {

@@ -35,6 +35,11 @@ var DefaultCollapseSidebar = false // default value of collapse sidebar
 var SessionSecret = uuid.New().String()
 var CryptoSecret = uuid.New().String()
 
+var MultiTenantEnabled bool
+var DefaultTenantId = "default"
+var TenantHeaderKey = "X-Tenant-Id"
+var TenantAuditEnabled = true
+
 var OptionMap map[string]string
 var OptionMapRWMutex sync.RWMutex
 

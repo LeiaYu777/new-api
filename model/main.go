@@ -1,6 +1,7 @@
 package model
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -69,8 +70,15 @@ func createRootAccountIfNeed() error {
 	var user User
 	//if user.Status != common.UserStatusEnabled {
 	if err := DB.First(&user).Error; err != nil {
-		common.SysLog("no user exists, create a root user for you: username is root, password is 123456")
-		hashedPassword, err := common.Password2Hash("123456")
+		if !common.GetEnvOrDefaultBool("AUTO_CREATE_ROOT", false) {
+			common.SysLog("no user exists, skip auto root creation, please use /api/setup to initialize")
+			return nil
+		}
+		initialPassword := strings.TrimSpace(os.Getenv("INITIAL_ROOT_PASSWORD"))
+		if initialPassword == "" {
+			return errors.New("INITIAL_ROOT_PASSWORD must be set when AUTO_CREATE_ROOT=true")
+		}
+		hashedPassword, err := common.Password2Hash(initialPassword)
 		if err != nil {
 			return err
 		}
@@ -79,6 +87,7 @@ func createRootAccountIfNeed() error {
 			Password:    hashedPassword,
 			Role:        common.RoleRootUser,
 			Status:      common.UserStatusEnabled,
+			TenantId:    common.GetDefaultTenantID(),
 			DisplayName: "Root User",
 			AccessToken: nil,
 			Quota:       100000000,
@@ -280,6 +289,8 @@ func migrateDB() error {
 		&SubscriptionPreConsumeRecord{},
 		&CustomOAuthProvider{},
 		&UserOAuthBinding{},
+		&Tenant{},
+		&TenantAuditLog{},
 	)
 	if err != nil {
 		return err
@@ -292,6 +303,9 @@ func migrateDB() error {
 		if err := DB.AutoMigrate(&SubscriptionPlan{}); err != nil {
 			return err
 		}
+	}
+	if err := EnsureDefaultTenant(); err != nil {
+		return err
 	}
 	return nil
 }
@@ -328,6 +342,8 @@ func migrateDBFast() error {
 		{&SubscriptionPreConsumeRecord{}, "SubscriptionPreConsumeRecord"},
 		{&CustomOAuthProvider{}, "CustomOAuthProvider"},
 		{&UserOAuthBinding{}, "UserOAuthBinding"},
+		{&Tenant{}, "Tenant"},
+		{&TenantAuditLog{}, "TenantAuditLog"},
 	}
 	// 动态计算migration数量，确保errChan缓冲区足够大
 	errChan := make(chan error, len(migrations))
@@ -360,6 +376,9 @@ func migrateDBFast() error {
 		if err := DB.AutoMigrate(&SubscriptionPlan{}); err != nil {
 			return err
 		}
+	}
+	if err := EnsureDefaultTenant(); err != nil {
+		return err
 	}
 	common.SysLog("database migrated")
 	return nil

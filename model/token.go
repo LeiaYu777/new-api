@@ -13,6 +13,7 @@ import (
 
 type Token struct {
 	Id                 int            `json:"id"`
+	TenantId           string         `json:"tenant_id" gorm:"type:varchar(64);index;default:'default'"`
 	UserId             int            `json:"user_id" gorm:"index"`
 	Key                string         `json:"key" gorm:"type:char(48);uniqueIndex"`
 	Status             int            `json:"status" gorm:"default:1"`
@@ -33,6 +34,13 @@ type Token struct {
 
 func (token *Token) Clean() {
 	token.Key = ""
+}
+
+func (token *Token) BeforeCreate(tx *gorm.DB) error {
+	if strings.TrimSpace(token.TenantId) == "" {
+		token.TenantId = common.GetDefaultTenantID()
+	}
+	return nil
 }
 
 func MaskTokenKey(key string) string {
