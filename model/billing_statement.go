@@ -150,6 +150,7 @@ func GenerateBillingStatements(filter BillingStatementFilter) (*BillingStatement
 		filter.UserId,
 		filter.Channel,
 		filter.Group,
+		"",
 		filter.BillingSource,
 		logSearchCountLimit,
 	)

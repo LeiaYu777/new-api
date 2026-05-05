@@ -105,10 +105,11 @@ func ExportBillingLogs(c *gin.Context) {
 	channel, _ := strconv.Atoi(c.Query("channel"))
 	group := c.Query("group")
 	requestId := c.Query("request_id")
+	taskId := c.Query("task_id")
 	billingSource := c.Query("billing_source")
 	limit, _ := strconv.Atoi(c.Query("limit"))
 
-	logs, err := model.GetBillingExportLogs(logType, startTimestamp, endTimestamp, modelName, username, userId, tokenName, channel, group, requestId, billingSource, limit)
+	logs, err := model.GetBillingExportLogs(logType, startTimestamp, endTimestamp, modelName, username, userId, tokenName, channel, group, requestId, taskId, billingSource, limit)
 	if err != nil {
 		common.ApiError(c, err)
 		return
@@ -212,10 +213,11 @@ func GetBillingSummary(c *gin.Context) {
 	modelName := c.Query("model_name")
 	channel, _ := strconv.Atoi(c.Query("channel"))
 	group := c.Query("group")
+	taskId := c.Query("task_id")
 	billingSource := c.Query("billing_source")
 	limit, _ := strconv.Atoi(c.Query("limit"))
 
-	summary, err := model.GetBillingSummary(startTimestamp, endTimestamp, modelName, username, userId, channel, group, billingSource, limit)
+	summary, err := model.GetBillingSummary(startTimestamp, endTimestamp, modelName, username, userId, channel, group, taskId, billingSource, limit)
 	if err != nil {
 		common.ApiError(c, err)
 		return

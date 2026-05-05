@@ -151,6 +151,7 @@ REFERENCE_VIDEO_URL=https://cdn.example.com/reference.mp4 \
 1. 模型：`doubao-seedance-2-0%`
 2. 用户名或用户 ID：本次测试用户
 3. 时间：本次测试时间窗口
+4. 如需核对单笔任务：填写本次返回的 `task_id`
 
 预期结果：
 
@@ -159,7 +160,8 @@ REFERENCE_VIDEO_URL=https://cdn.example.com/reference.mp4 \
 3. 净扣费 = 消费扣费 - 退款返还。
 4. CSV 导出包含 `billing_source=wallet`。
 5. CSV 导出包含 `task_id`、`pre_consumed_quota`、`actual_quota`。
-6. 如导出类型选择“充值”，CSV 应包含 `content`，用于核对充值、补单或兑换码说明。
+6. 填写 `task_id` 后，汇总与 CSV 导出只包含该任务的消费、退款和净扣费。
+7. 如导出类型选择“充值”，CSV 应包含 `content`，用于核对充值、补单或兑换码说明。
 
 ## 4. 订阅扣费验收
 
@@ -267,8 +269,8 @@ EXPECT_SUBMIT_FAILURE=true \
 1. 提交任务的请求体和返回 `task_id`。
 2. 任务最终查询结果。
 3. 用户余额或订阅额度验收前后截图。
-4. `/console/billing` 汇总截图。
-5. CSV 导出文件。
+4. `/console/billing` 汇总截图，建议同时保存按 `task_id` 精确筛选后的截图。
+5. CSV 导出文件，建议同时保存按 `task_id` 精确筛选后的 CSV。
 6. 服务端日志中与 `task_id` 对应的计费记录。
 
 ## 7. 通过标准
@@ -280,7 +282,7 @@ EXPECT_SUBMIT_FAILURE=true \
 3. 订阅扣费成功任务：订阅已用额度增加，账单标记 `subscription`。
 4. 订阅扣费失败任务：订阅预扣退还。
 5. 非法参数不会发起上游调用。
-6. 管理员可通过 `/console/billing` 查到用户、模型、渠道、净扣费。
+6. 管理员可通过 `/console/billing` 查到用户、模型、渠道、任务 ID、净扣费。
 
 ## 8. 不通过处理
 

@@ -327,7 +327,7 @@ func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName
 	return logs, total, err
 }
 
-func GetBillingExportLogs(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, userId int, tokenName string, channel int, group string, requestId string, billingSource string, limit int) (logs []*Log, err error) {
+func GetBillingExportLogs(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, userId int, tokenName string, channel int, group string, requestId string, taskId string, billingSource string, limit int) (logs []*Log, err error) {
 	if limit <= 0 || limit > logSearchCountLimit {
 		limit = logSearchCountLimit
 	}
@@ -370,6 +370,7 @@ func GetBillingExportLogs(logType int, startTimestamp int64, endTimestamp int64,
 	if requestId != "" {
 		tx = tx.Where("logs.request_id = ?", requestId)
 	}
+	tx = applyBillingTaskIDFilter(tx, taskId)
 	err = tx.Order("logs.id desc").Limit(limit).Find(&logs).Error
 	return logs, err
 }
@@ -402,6 +403,17 @@ func billingSourceSQLExpr() string {
 	}
 }
 
+func billingTaskIDSQLExpr() string {
+	switch common.LogSqlType {
+	case common.DatabaseTypePostgreSQL:
+		return "COALESCE(CASE WHEN logs.other IS NULL OR logs.other = '' THEN '' ELSE logs.other::jsonb ->> 'task_id' END, '')"
+	case common.DatabaseTypeMySQL:
+		return "COALESCE(JSON_UNQUOTE(JSON_EXTRACT(NULLIF(logs.other, ''), '$.task_id')), '')"
+	default:
+		return "COALESCE(json_extract(NULLIF(logs.other, ''), '$.task_id'), '')"
+	}
+}
+
 func applyBillingSourceFilter(tx *gorm.DB, billingSource string) (*gorm.DB, error) {
 	normalized, err := normalizeBillingSource(billingSource)
 	if err != nil {
@@ -411,6 +423,14 @@ func applyBillingSourceFilter(tx *gorm.DB, billingSource string) (*gorm.DB, erro
 		return tx, nil
 	}
 	return tx.Where(billingSourceSQLExpr()+" = ?", normalized), nil
+}
+
+func applyBillingTaskIDFilter(tx *gorm.DB, taskId string) *gorm.DB {
+	taskId = strings.TrimSpace(taskId)
+	if taskId == "" {
+		return tx
+	}
+	return tx.Where(billingTaskIDSQLExpr()+" = ?", taskId)
 }
 
 func GetUserLogs(userId int, logType int, startTimestamp int64, endTimestamp int64, modelName string, tokenName string, startIdx int, num int, group string, requestId string) (logs []*Log, total int64, err error) {
@@ -489,7 +509,7 @@ type BillingSummary struct {
 	TotalTokens  int64                 `json:"total_tokens"`
 }
 
-func GetBillingSummary(startTimestamp int64, endTimestamp int64, modelName string, username string, userId int, channel int, group string, billingSource string, limit int) (*BillingSummary, error) {
+func GetBillingSummary(startTimestamp int64, endTimestamp int64, modelName string, username string, userId int, channel int, group string, taskId string, billingSource string, limit int) (*BillingSummary, error) {
 	if limit <= 0 || limit > logSearchCountLimit {
 		limit = logSearchCountLimit
 	}
@@ -542,6 +562,7 @@ func GetBillingSummary(startTimestamp int64, endTimestamp int64, modelName strin
 	if group != "" {
 		tx = tx.Where(groupExpr+" = ?", group)
 	}
+	tx = applyBillingTaskIDFilter(tx, taskId)
 
 	items := make([]*BillingSummaryItem, 0)
 	err = tx.Group("logs.user_id, logs.username, logs.model_name, logs.channel_id, " + groupExpr + ", " + billingSourceExpr).

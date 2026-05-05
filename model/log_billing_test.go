@@ -64,7 +64,7 @@ func TestGetBillingSummaryAggregatesConsumeAndRefund(t *testing.T) {
 		t.Fatalf("failed to seed logs: %v", err)
 	}
 
-	summary, err := GetBillingSummary(0, 0, "doubao-seedance-2-0", "", 0, 0, "", "", 100)
+	summary, err := GetBillingSummary(0, 0, "doubao-seedance-2-0", "", 0, 0, "", "", "", 100)
 	if err != nil {
 		t.Fatalf("GetBillingSummary() error = %v", err)
 	}
@@ -109,7 +109,7 @@ func TestGetBillingSummaryFiltersByUserAndChannel(t *testing.T) {
 		t.Fatalf("failed to seed logs: %v", err)
 	}
 
-	summary, err := GetBillingSummary(0, 0, "", "", 1, 45, "vip", "", 100)
+	summary, err := GetBillingSummary(0, 0, "", "", 1, 45, "vip", "", "", 100)
 	if err != nil {
 		t.Fatalf("GetBillingSummary() error = %v", err)
 	}
@@ -132,7 +132,7 @@ func TestGetBillingSummaryGroupsAndFiltersByBillingSource(t *testing.T) {
 		t.Fatalf("failed to seed logs: %v", err)
 	}
 
-	summary, err := GetBillingSummary(0, 0, "", "", 1, 45, "vip", "", 100)
+	summary, err := GetBillingSummary(0, 0, "", "", 1, 45, "vip", "", "", 100)
 	if err != nil {
 		t.Fatalf("GetBillingSummary() error = %v", err)
 	}
@@ -150,7 +150,7 @@ func TestGetBillingSummaryGroupsAndFiltersByBillingSource(t *testing.T) {
 		t.Fatalf("subscription net quota = %d", netBySource[billingSourceSubscription])
 	}
 
-	filtered, err := GetBillingSummary(0, 0, "", "", 1, 45, "vip", billingSourceSubscription, 100)
+	filtered, err := GetBillingSummary(0, 0, "", "", 1, 45, "vip", "", billingSourceSubscription, 100)
 	if err != nil {
 		t.Fatalf("GetBillingSummary(subscription) error = %v", err)
 	}
@@ -172,7 +172,7 @@ func TestGetBillingExportLogsSanitizesModelFilter(t *testing.T) {
 		t.Fatalf("failed to seed logs: %v", err)
 	}
 
-	exported, err := GetBillingExportLogs(LogTypeUnknown, 0, 0, "doubao-seedance-2-0", "", 0, "", 0, "", "", "", 100)
+	exported, err := GetBillingExportLogs(LogTypeUnknown, 0, 0, "doubao-seedance-2-0", "", 0, "", 0, "", "", "", "", 100)
 	if err != nil {
 		t.Fatalf("GetBillingExportLogs() error = %v", err)
 	}
@@ -180,7 +180,7 @@ func TestGetBillingExportLogsSanitizesModelFilter(t *testing.T) {
 		t.Fatalf("unexpected exported logs: %+v", exported)
 	}
 
-	if _, err := GetBillingExportLogs(LogTypeUnknown, 0, 0, "%%%%", "", 0, "", 0, "", "", "", 100); err == nil {
+	if _, err := GetBillingExportLogs(LogTypeUnknown, 0, 0, "%%%%", "", 0, "", 0, "", "", "", "", 100); err == nil {
 		t.Fatalf("expected invalid wildcard pattern error")
 	}
 }
@@ -195,7 +195,7 @@ func TestGetBillingExportLogsFiltersByBillingSource(t *testing.T) {
 		t.Fatalf("failed to seed logs: %v", err)
 	}
 
-	exported, err := GetBillingExportLogs(LogTypeConsume, 0, 0, "doubao-seedance-2-0", "", 0, "", 0, "", "", billingSourceSubscription, 100)
+	exported, err := GetBillingExportLogs(LogTypeConsume, 0, 0, "doubao-seedance-2-0", "", 0, "", 0, "", "", "", billingSourceSubscription, 100)
 	if err != nil {
 		t.Fatalf("GetBillingExportLogs(subscription) error = %v", err)
 	}
@@ -203,8 +203,60 @@ func TestGetBillingExportLogsFiltersByBillingSource(t *testing.T) {
 		t.Fatalf("unexpected exported logs: %+v", exported)
 	}
 
-	if _, err := GetBillingExportLogs(LogTypeConsume, 0, 0, "", "", 0, "", 0, "", "", "unknown", 100); err == nil {
+	if _, err := GetBillingExportLogs(LogTypeConsume, 0, 0, "", "", 0, "", 0, "", "", "", "unknown", 100); err == nil {
 		t.Fatalf("expected unsupported billing source error")
+	}
+}
+
+func TestGetBillingSummaryFiltersByTaskID(t *testing.T) {
+	db := setupLogBillingTestDB(t)
+	logs := []*Log{
+		{UserId: 1, Username: "alice", CreatedAt: 10, Type: LogTypeConsume, ModelName: "doubao-seedance-2-0", Quota: 1000, ChannelId: 45, Group: "vip", Other: common.MapToJsonStr(map[string]interface{}{"task_id": "task_seedance_a", "billing_source": billingSourceWallet})},
+		{UserId: 1, Username: "alice", CreatedAt: 20, Type: LogTypeRefund, ModelName: "doubao-seedance-2-0", Quota: 250, ChannelId: 45, Group: "vip", Other: common.MapToJsonStr(map[string]interface{}{"task_id": "task_seedance_a", "billing_source": billingSourceWallet})},
+		{UserId: 1, Username: "alice", CreatedAt: 30, Type: LogTypeConsume, ModelName: "doubao-seedance-2-0", Quota: 400, ChannelId: 45, Group: "vip", Other: common.MapToJsonStr(map[string]interface{}{"task_id": "task_seedance_b", "billing_source": billingSourceWallet})},
+	}
+	if err := db.Create(&logs).Error; err != nil {
+		t.Fatalf("failed to seed logs: %v", err)
+	}
+
+	summary, err := GetBillingSummary(0, 0, "", "", 1, 45, "vip", "task_seedance_a", "", 100)
+	if err != nil {
+		t.Fatalf("GetBillingSummary(task_id) error = %v", err)
+	}
+	if len(summary.Items) != 1 {
+		t.Fatalf("items len = %d", len(summary.Items))
+	}
+	if summary.ConsumeQuota != 1000 || summary.RefundQuota != 250 || summary.NetQuota != 750 {
+		t.Fatalf("summary totals = %+v", summary)
+	}
+	if summary.RequestCount != 1 || summary.RefundCount != 1 {
+		t.Fatalf("summary counts = %+v", summary)
+	}
+}
+
+func TestGetBillingExportLogsFiltersByTaskID(t *testing.T) {
+	db := setupLogBillingTestDB(t)
+	logs := []*Log{
+		{UserId: 1, Username: "alice", CreatedAt: 10, Type: LogTypeConsume, ModelName: "doubao-seedance-2-0", Quota: 1000, ChannelId: 45, Group: "vip", Other: common.MapToJsonStr(map[string]interface{}{"task_id": "task_seedance_a", "billing_source": billingSourceWallet})},
+		{UserId: 1, Username: "alice", CreatedAt: 20, Type: LogTypeRefund, ModelName: "doubao-seedance-2-0", Quota: 250, ChannelId: 45, Group: "vip", Other: common.MapToJsonStr(map[string]interface{}{"task_id": "task_seedance_a", "billing_source": billingSourceWallet})},
+		{UserId: 1, Username: "alice", CreatedAt: 30, Type: LogTypeConsume, ModelName: "doubao-seedance-2-0", Quota: 400, ChannelId: 45, Group: "vip", Other: common.MapToJsonStr(map[string]interface{}{"task_id": "task_seedance_b", "billing_source": billingSourceWallet})},
+	}
+	if err := db.Create(&logs).Error; err != nil {
+		t.Fatalf("failed to seed logs: %v", err)
+	}
+
+	exported, err := GetBillingExportLogs(LogTypeUnknown, 0, 0, "doubao-seedance-2-0", "", 0, "", 0, "", "", "task_seedance_a", "", 100)
+	if err != nil {
+		t.Fatalf("GetBillingExportLogs(task_id) error = %v", err)
+	}
+	if len(exported) != 2 {
+		t.Fatalf("exported len = %d", len(exported))
+	}
+	for _, log := range exported {
+		other, _ := common.StrToMap(log.Other)
+		if fmt.Sprint(other["task_id"]) != "task_seedance_a" {
+			t.Fatalf("unexpected exported task_id: %+v", exported)
+		}
 	}
 }
 

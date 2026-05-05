@@ -89,6 +89,7 @@ const buildParams = (values = {}) => {
     user_id: Number(values.user_id || 0),
     channel: Number(values.channel || 0),
     group: trimValue(values.group),
+    task_id: trimValue(values.task_id),
     billing_source: trimValue(values.billing_source),
     limit: Number(values.limit || DEFAULT_LIMIT),
   };
@@ -153,6 +154,7 @@ const BillingPage = () => {
       limit: DEFAULT_LIMIT,
       logType: 0,
       billing_source: '',
+      task_id: '',
     }),
     [],
   );
@@ -307,6 +309,7 @@ const BillingPage = () => {
         delete params.channel;
         delete params.group;
         delete params.billing_source;
+        delete params.task_id;
       }
       const res = await API.get('/api/billing/export', {
         params,
@@ -647,6 +650,14 @@ const BillingPage = () => {
             pure
             size='small'
           />
+          <Form.Input
+            field='task_id'
+            prefix={<IconSearch />}
+            placeholder={t('任务 ID 精确对账')}
+            showClear
+            pure
+            size='small'
+          />
           <Form.Select
             field='billing_source'
             placeholder={t('资金来源')}
@@ -685,7 +696,7 @@ const BillingPage = () => {
             </Form.Select>
             <Text type='secondary' size='small'>
               {t(
-                '默认筛选 Seedance 2.0 系列；导出充值时会自动忽略模型、渠道和分组筛选。',
+                '默认筛选 Seedance 2.0 系列；任务 ID 可精确对账；导出充值时会自动忽略模型、渠道、分组、资金来源和任务筛选。',
               )}
             </Text>
           </div>
@@ -739,7 +750,7 @@ const BillingPage = () => {
         </Title>
         <Text type='secondary'>
           {t(
-            '按用户、模型、渠道、分组和资金来源汇总消费与退款，适用于 Seedance 2.0 充值扣费对账。',
+            '按用户、模型、渠道、分组、资金来源和任务 ID 汇总消费与退款，适用于 Seedance 2.0 充值扣费对账。',
           )}
         </Text>
       </div>

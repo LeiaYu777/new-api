@@ -214,6 +214,7 @@ func GetBillingAlertMetrics(filter BillingAlertFilter) (*BillingAlertMetrics, er
 		filter.UserId,
 		filter.Channel,
 		filter.Group,
+		"",
 		filter.BillingSource,
 		logSearchCountLimit,
 	)
