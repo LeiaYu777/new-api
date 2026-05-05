@@ -17,6 +17,9 @@ set -euo pipefail
 #   USAGE_CONFIRMED=false           Mark upstream usage.total_tokens as verified.
 #   FAIL_ON_WARNINGS=false          Exit non-zero when warnings exist.
 #   CHECK_HTTP=false                Check BASE_URL /api/status reachability.
+#   CHECK_BILLING_METRICS=false     Check BASE_URL /api/billing/metrics with admin credentials.
+#   ADMIN_ACCESS_TOKEN=...          Admin access token for CHECK_BILLING_METRICS.
+#   ADMIN_USER_ID=1                 Admin user id for CHECK_BILLING_METRICS New-Api-User header.
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${ROOT_DIR}"
@@ -156,6 +159,9 @@ REQUIRE_LOCAL_WORKER="${REQUIRE_LOCAL_WORKER:-false}"
 USAGE_CONFIRMED="${USAGE_CONFIRMED:-false}"
 FAIL_ON_WARNINGS="${FAIL_ON_WARNINGS:-false}"
 CHECK_HTTP="${CHECK_HTTP:-false}"
+CHECK_BILLING_METRICS="${CHECK_BILLING_METRICS:-false}"
+HTTP_TIMEOUT_SECONDS="${HTTP_TIMEOUT_SECONDS:-5}"
+METRICS_MODEL="${METRICS_MODEL:-${MODEL}%}"
 
 printf 'Seedance 2.0 billing preflight\n'
 printf 'Root: %s\n' "${ROOT_DIR}"
@@ -260,7 +266,7 @@ fi
 if is_true "${CHECK_HTTP}"; then
   print_section "HTTP reachability"
   if command -v curl >/dev/null 2>&1; then
-    http_code="$(curl -sS -m "${HTTP_TIMEOUT_SECONDS:-5}" -o /tmp/seedance-preflight-status.json -w '%{http_code}' "${BASE_URL%/}/api/status" || true)"
+    http_code="$(curl -sS -m "${HTTP_TIMEOUT_SECONDS}" -o /tmp/seedance-preflight-status.json -w '%{http_code}' "${BASE_URL%/}/api/status" || true)"
     if [[ "${http_code}" =~ ^2[0-9][0-9]$ ]]; then
       pass "${BASE_URL%/}/api/status returned HTTP ${http_code}."
     else
@@ -270,6 +276,37 @@ if is_true "${CHECK_HTTP}"; then
   else
     warn "Skipping CHECK_HTTP because curl is not installed."
   fi
+fi
+
+if is_true "${CHECK_BILLING_METRICS}"; then
+  print_section "Billing metrics"
+  if ! command -v curl >/dev/null 2>&1; then
+    fail "Cannot check /api/billing/metrics because curl is not installed."
+  elif [[ -z "${ADMIN_ACCESS_TOKEN:-}" || -z "${ADMIN_USER_ID:-}" ]]; then
+    fail "CHECK_BILLING_METRICS=true requires ADMIN_ACCESS_TOKEN and ADMIN_USER_ID."
+  else
+    metrics_url="${BASE_URL%/}/api/billing/metrics"
+    metrics_file="$(mktemp -t seedance-billing-metrics.XXXXXX)"
+    http_code="$(curl -sS -G -m "${HTTP_TIMEOUT_SECONDS}" \
+      -H "Authorization: ${ADMIN_ACCESS_TOKEN}" \
+      -H "New-Api-User: ${ADMIN_USER_ID}" \
+      --data-urlencode "model_name=${METRICS_MODEL}" \
+      -o "${metrics_file}" \
+      -w '%{http_code}' \
+      "${metrics_url}" || true)"
+    if [[ ! "${http_code}" =~ ^2[0-9][0-9]$ ]]; then
+      fail "${metrics_url}?model_name=${METRICS_MODEL} returned HTTP ${http_code:-curl_error}."
+    elif grep -q "newapi_billing_net_quota" "${metrics_file}" &&
+      grep -q "newapi_billing_task_failure_rate" "${metrics_file}" &&
+      grep -q "newapi_billing_worker_lag_seconds" "${metrics_file}"; then
+      pass "/api/billing/metrics returned required Seedance billing metrics."
+    else
+      fail "/api/billing/metrics did not include required billing metric names."
+    fi
+    rm -f "${metrics_file}"
+  fi
+else
+  info "CHECK_BILLING_METRICS=false. Set it true in pre-production to validate Prometheus scraping."
 fi
 
 print_section "Summary"

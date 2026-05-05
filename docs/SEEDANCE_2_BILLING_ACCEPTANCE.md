@@ -43,7 +43,17 @@ scripts/seedance-billing-preflight.sh
 REQUIRE_LOCAL_WORKER=true scripts/seedance-billing-preflight.sh
 ```
 
-预检脚本不会提交真实任务，只检查 worker、usage 策略、素材域名 allowlist、月结和告警阈值等上线前配置。
+如需同时验证 Prometheus 指标端点，可追加管理员 access token 和用户 ID：
+
+```bash
+CHECK_BILLING_METRICS=true \
+BASE_URL=https://your-domain \
+ADMIN_ACCESS_TOKEN=sk-admin-access-token \
+ADMIN_USER_ID=1 \
+scripts/seedance-billing-preflight.sh
+```
+
+预检脚本不会提交真实任务，只检查 worker、usage 策略、素材域名 allowlist、月结、告警阈值和可选指标抓取等上线前配置。
 
 ### 2.2 渠道配置
 
