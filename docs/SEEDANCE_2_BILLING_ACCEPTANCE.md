@@ -96,6 +96,12 @@ GENERATE_AUDIO=false \
 ./scripts/seedance-billing-smoke.sh
 ```
 
+如需验收图生视频，可追加：
+
+```bash
+IMAGE_URL=https://cdn.example.com/reference.png ./scripts/seedance-billing-smoke.sh
+```
+
 预期结果：
 
 1. 返回 `task_id`。
@@ -212,17 +218,11 @@ SEEDANCE_BILLING_STRICT_USAGE=true
 操作：
 
 ```bash
-curl -sS "${BASE_URL}/v1/video/generations" \
-  -H "Authorization: Bearer ${API_KEY}" \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "model": "doubao-seedance-2-0",
-    "prompt": "一只橘猫在江南古镇灯笼下奔跑",
-    "images": ["http://127.0.0.1/admin"],
-    "duration": 5,
-    "resolution": "720p",
-    "ratio": "16:9"
-  }'
+API_KEY=sk-xxx \
+BASE_URL=https://your-domain \
+IMAGE_URL=http://127.0.0.1/admin \
+EXPECT_SUBMIT_FAILURE=true \
+./scripts/seedance-billing-smoke.sh
 ```
 
 预期结果：
@@ -230,7 +230,7 @@ curl -sS "${BASE_URL}/v1/video/generations" \
 1. 请求返回 `invalid_image_url`。
 2. 不创建上游任务。
 3. 不产生消费扣费。
-4. 如果传入 `callback_url` 带账号密码或内网地址，应返回 `invalid_callback_url`。
+4. 如果传入 `CALLBACK_URL=https://token:secret@example.com/callback`，应返回 `invalid_callback_url`。
 
 ## 6. 验收证据
 

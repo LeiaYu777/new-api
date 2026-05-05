@@ -15,6 +15,9 @@ set -euo pipefail
 #   RESOLUTION=720p
 #   RATIO=16:9
 #   GENERATE_AUDIO=false
+#   IMAGE_URL=https://cdn.example.com/reference.png
+#   CALLBACK_URL=https://app.example.com/seedance/callback
+#   EXPECT_SUBMIT_FAILURE=false
 #   POLL_INTERVAL=5
 #   POLL_ATTEMPTS=36
 
@@ -25,6 +28,9 @@ DURATION="${DURATION:-5}"
 RESOLUTION="${RESOLUTION:-720p}"
 RATIO="${RATIO:-16:9}"
 GENERATE_AUDIO="${GENERATE_AUDIO:-false}"
+IMAGE_URL="${IMAGE_URL:-}"
+CALLBACK_URL="${CALLBACK_URL:-}"
+EXPECT_SUBMIT_FAILURE="${EXPECT_SUBMIT_FAILURE:-false}"
 POLL_INTERVAL="${POLL_INTERVAL:-5}"
 POLL_ATTEMPTS="${POLL_ATTEMPTS:-36}"
 
@@ -44,6 +50,8 @@ submit_payload="$(
     --arg prompt "$PROMPT" \
     --arg resolution "$RESOLUTION" \
     --arg ratio "$RATIO" \
+    --arg image_url "$IMAGE_URL" \
+    --arg callback_url "$CALLBACK_URL" \
     --argjson duration "$DURATION" \
     --argjson generate_audio "$GENERATE_AUDIO" \
     '{
@@ -53,18 +61,37 @@ submit_payload="$(
       resolution: $resolution,
       ratio: $ratio,
       generate_audio: $generate_audio
-    }'
+    }
+    | if $image_url != "" then . + {images: [$image_url]} else . end
+    | if $callback_url != "" then . + {callback_url: $callback_url} else . end'
 )"
 
 echo "Submitting Seedance 2.0 task to ${BASE_URL}/v1/video/generations"
-submit_response="$(
-  curl -fsS \
+submit_http_response="$(
+  curl -sS \
+    -w $'\n%{http_code}' \
     -H "Authorization: Bearer ${API_KEY}" \
     -H "Content-Type: application/json" \
     -d "$submit_payload" \
     "${BASE_URL}/v1/video/generations"
 )"
-echo "$submit_response" | jq .
+submit_status="${submit_http_response##*$'\n'}"
+submit_response="${submit_http_response%$'\n'*}"
+echo "$submit_response" | jq . || echo "$submit_response"
+
+if [[ "$EXPECT_SUBMIT_FAILURE" == "true" ]]; then
+  if [[ "$submit_status" =~ ^[45][0-9][0-9]$ ]]; then
+    echo "Submit failed as expected with HTTP ${submit_status}."
+    exit 0
+  fi
+  echo "Expected submit failure, got HTTP ${submit_status}." >&2
+  exit 1
+fi
+
+if [[ ! "$submit_status" =~ ^2[0-9][0-9]$ ]]; then
+  echo "Submit failed with HTTP ${submit_status}." >&2
+  exit 1
+fi
 
 task_id="$(echo "$submit_response" | jq -r '.task_id // .id // empty')"
 if [[ -z "$task_id" || "$task_id" == "null" ]]; then

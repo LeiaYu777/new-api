@@ -334,7 +334,26 @@ curl -sS https://your-domain/v1/video/generations \
     "ratio": "16:9",
     "generate_audio": true,
     "watermark": false
-  }'
+}'
+```
+
+图生视频 smoke test：
+
+```bash
+API_KEY=sk-xxx \
+BASE_URL=https://your-domain \
+IMAGE_URL=https://cdn.example.com/reference.png \
+./scripts/seedance-billing-smoke.sh
+```
+
+非法素材 URL 拦截 smoke test：
+
+```bash
+API_KEY=sk-xxx \
+BASE_URL=https://your-domain \
+IMAGE_URL=http://127.0.0.1/admin \
+EXPECT_SUBMIT_FAILURE=true \
+./scripts/seedance-billing-smoke.sh
 ```
 
 用户查询任务：
