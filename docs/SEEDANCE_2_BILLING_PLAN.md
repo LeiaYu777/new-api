@@ -20,13 +20,21 @@
 6. 消费日志：`model.Log` 可记录用户、模型、渠道、Token、额度、分组等账单字段。
 7. Doubao/VolcEngine 视频任务适配基础：已有 `ChannelTypeDoubaoVideo`、`ChannelTypeVolcEngine` 和 `relay/channel/task/doubao` 异步任务适配器。
 
-当前主要缺口：
+当前已完成的代码能力：
 
-1. Seedance 2.0 模型名未内置。
-2. Seedance 2.0 官方参数、返回结构、任务状态、usage 字段未经过真实联调验证。
-3. Seedance 2.0 专属价格策略未配置。
-4. 后台已新增管理员账单页，可做 Seedance 2.0 消费/退款汇总与流水导出；客户账单周期报表仍建议后续产品化。
-5. 如上游不稳定返回 `usage.total_tokens`，需要自定义 Seedance 2.0 的预估价与最终价计算逻辑。
+1. Seedance 2.0 系列模型名、模型识别和模型映射兜底已经加入。
+2. Seedance 2.0 任务参数解析、参数白名单、图片数量限制和固定价格兜底已经加入。
+3. 钱包余额、订阅额度、Token 额度的任务预扣、补扣、退款链路已经打通。
+4. 管理员账单页、汇总 API、CSV 导出和资金来源审计字段已经加入。
+5. Smoke test 脚本和验收手册已经加入。
+
+当前剩余缺口：
+
+1. Seedance 2.0 官方参数、返回结构、任务状态、usage 字段仍需使用客户真实火山方舟账号联调验证。
+2. Seedance 2.0 生产价格、订阅套餐、充值支付方式仍需按客户业务配置。
+3. 如果允许客户传外部图片或视频 URI，需要继续补齐 SSRF 防护、URL allowlist 或对象存储中转策略。
+4. 客户账单周期报表、资金来源维度汇总和任务列表体验增强仍属于后续产品化事项。
+5. 详细剩余任务见 `docs/SEEDANCE_2_BILLING_REMAINING_TASKS.md`。
 
 ## 3. MVP 范围
 
@@ -46,10 +54,10 @@ MVP 只实现客户现在需要的闭环：
 建议从当前主线拉独立分支：
 
 ```bash
-git checkout -b codex/seedance-billing leia/main
+git checkout -b codex/seedance-billing-plan leia/main
 ```
 
-所有改造先进入 `codex/seedance-billing`，验证通过后再发 PR 合并到 `main`。
+所有改造先进入 `codex/seedance-billing-plan`，验证通过后再发 PR 合并到 `main`。
 
 当前方案文档先放在：
 
@@ -298,11 +306,17 @@ MVP 阶段可以复用现有页面：
 5. 充值页面：用户充值。
 6. 订阅页面：用户购买订阅。
 
+已新增：
+
+1. 管理员账单页：`/console/billing`
+2. 账单汇总 API：`GET /api/billing/summary`
+3. 账单导出 API：`GET /api/billing/export`
+
 后续建议新增：
 
-1. 客户账单页：`/console/billing`
-2. 账单导出按钮。
-3. Seedance 任务列表增强：展示视频任务状态、消耗、退款、结果 URL。
+1. 客户可见账单页，按月展示消费、充值、退款和订阅额度。
+2. Seedance 任务列表增强：展示视频任务状态、消耗、退款、结果 URL。
+3. 按钱包/订阅资金来源维度的汇总筛选。
 
 ## 8. API 调用示例
 
@@ -343,6 +357,12 @@ curl -sS 'https://your-domain/api/log/?model_name=doubao-seedance-2-0' \
 
 ```text
 docs/SEEDANCE_2_BILLING_ACCEPTANCE.md
+```
+
+剩余任务清单见：
+
+```text
+docs/SEEDANCE_2_BILLING_REMAINING_TASKS.md
 ```
 
 ### 9.1 充值钱包
