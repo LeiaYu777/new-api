@@ -301,6 +301,8 @@ func SetApiRouter(router *gin.Engine) {
 		{
 			billingRoute.GET("/summary", controller.GetBillingSummary)
 			billingRoute.GET("/export", controller.ExportBillingLogs)
+			billingRoute.GET("/statements", controller.GetBillingStatements)
+			billingRoute.POST("/statements/generate", controller.GenerateBillingStatements)
 		}
 
 		dataRoute := apiRouter.Group("/data")

@@ -162,6 +162,31 @@ func ExportBillingLogs(c *gin.Context) {
 	}
 }
 
+func parseBillingTimestampQuery(c *gin.Context, primary string, fallback string) int64 {
+	value := c.Query(primary)
+	if value == "" && fallback != "" {
+		value = c.Query(fallback)
+	}
+	timestamp, _ := strconv.ParseInt(value, 10, 64)
+	return timestamp
+}
+
+func parseBillingStatementFilter(c *gin.Context) model.BillingStatementFilter {
+	userId, _ := strconv.Atoi(c.Query("user_id"))
+	channel, _ := strconv.Atoi(c.Query("channel"))
+	return model.BillingStatementFilter{
+		PeriodStart:   parseBillingTimestampQuery(c, "period_start", "start_timestamp"),
+		PeriodEnd:     parseBillingTimestampQuery(c, "period_end", "end_timestamp"),
+		Username:      c.Query("username"),
+		UserId:        userId,
+		ModelName:     c.Query("model_name"),
+		Channel:       channel,
+		Group:         c.Query("group"),
+		BillingSource: c.Query("billing_source"),
+		Status:        c.Query("status"),
+	}
+}
+
 func GetBillingSummary(c *gin.Context) {
 	startTimestamp, _ := strconv.ParseInt(c.Query("start_timestamp"), 10, 64)
 	endTimestamp, _ := strconv.ParseInt(c.Query("end_timestamp"), 10, 64)
@@ -179,6 +204,29 @@ func GetBillingSummary(c *gin.Context) {
 		return
 	}
 	common.ApiSuccess(c, summary)
+}
+
+func GetBillingStatements(c *gin.Context) {
+	pageInfo := common.GetPageQuery(c)
+	filter := parseBillingStatementFilter(c)
+	statements, total, err := model.GetBillingStatements(filter, pageInfo.GetStartIdx(), pageInfo.GetPageSize())
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	pageInfo.SetTotal(int(total))
+	pageInfo.SetItems(statements)
+	common.ApiSuccess(c, pageInfo)
+}
+
+func GenerateBillingStatements(c *gin.Context) {
+	filter := parseBillingStatementFilter(c)
+	result, err := model.GenerateBillingStatements(filter)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	common.ApiSuccess(c, result)
 }
 
 func GetLogByKey(c *gin.Context) {

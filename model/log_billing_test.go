@@ -13,6 +13,14 @@ import (
 func setupLogBillingTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 
+	oldDB := DB
+	oldLOGDB := LOG_DB
+	oldUsingSQLite := common.UsingSQLite
+	oldUsingMySQL := common.UsingMySQL
+	oldUsingPostgreSQL := common.UsingPostgreSQL
+	oldLogSqlType := common.LogSqlType
+	oldLogGroupCol := logGroupCol
+
 	common.UsingSQLite = true
 	common.UsingMySQL = false
 	common.UsingPostgreSQL = false
@@ -25,10 +33,18 @@ func setupLogBillingTestDB(t *testing.T) *gorm.DB {
 		t.Fatalf("failed to open sqlite db: %v", err)
 	}
 	LOG_DB = db
-	if err := db.AutoMigrate(&Log{}); err != nil {
+	DB = db
+	if err := db.AutoMigrate(&Log{}, &BillingStatement{}); err != nil {
 		t.Fatalf("failed to migrate logs: %v", err)
 	}
 	t.Cleanup(func() {
+		DB = oldDB
+		LOG_DB = oldLOGDB
+		common.UsingSQLite = oldUsingSQLite
+		common.UsingMySQL = oldUsingMySQL
+		common.UsingPostgreSQL = oldUsingPostgreSQL
+		common.LogSqlType = oldLogSqlType
+		logGroupCol = oldLogGroupCol
 		sqlDB, err := db.DB()
 		if err == nil {
 			_ = sqlDB.Close()
@@ -189,5 +205,89 @@ func TestGetBillingExportLogsFiltersByBillingSource(t *testing.T) {
 
 	if _, err := GetBillingExportLogs(LogTypeConsume, 0, 0, "", "", 0, "", 0, "", "", "unknown", 100); err == nil {
 		t.Fatalf("expected unsupported billing source error")
+	}
+}
+
+func TestGenerateBillingStatementsCreatesSourceSnapshots(t *testing.T) {
+	db := setupLogBillingTestDB(t)
+	logs := []*Log{
+		{UserId: 1, Username: "alice", CreatedAt: 10, Type: LogTypeConsume, ModelName: "doubao-seedance-2-0", Quota: 1000, ChannelId: 45, Group: "vip", Other: common.MapToJsonStr(map[string]interface{}{"billing_source": billingSourceWallet})},
+		{UserId: 1, Username: "alice", CreatedAt: 20, Type: LogTypeConsume, ModelName: "doubao-seedance-2-0", Quota: 400, ChannelId: 45, Group: "vip", Other: common.MapToJsonStr(map[string]interface{}{"billing_source": billingSourceSubscription})},
+		{UserId: 1, Username: "alice", CreatedAt: 30, Type: LogTypeRefund, ModelName: "doubao-seedance-2-0", Quota: 100, ChannelId: 45, Group: "vip", Other: common.MapToJsonStr(map[string]interface{}{"billing_source": billingSourceSubscription})},
+	}
+	if err := db.Create(&logs).Error; err != nil {
+		t.Fatalf("failed to seed logs: %v", err)
+	}
+
+	result, err := GenerateBillingStatements(BillingStatementFilter{
+		PeriodStart: 1,
+		PeriodEnd:   40,
+		ModelName:   "doubao-seedance-2-0",
+		UserId:      1,
+	})
+	if err != nil {
+		t.Fatalf("GenerateBillingStatements() error = %v", err)
+	}
+	if result.GeneratedCount != 2 {
+		t.Fatalf("generated count = %d", result.GeneratedCount)
+	}
+
+	statements, total, err := GetBillingStatements(BillingStatementFilter{
+		PeriodStart: 1,
+		PeriodEnd:   40,
+		UserId:      1,
+	}, 0, 100)
+	if err != nil {
+		t.Fatalf("GetBillingStatements() error = %v", err)
+	}
+	if total != 2 || len(statements) != 2 {
+		t.Fatalf("statements total/len = %d/%d", total, len(statements))
+	}
+	netBySource := map[string]int64{}
+	for _, statement := range statements {
+		netBySource[statement.BillingSource] = statement.NetQuota
+	}
+	if netBySource[billingSourceWallet] != 1000 {
+		t.Fatalf("wallet net quota = %d", netBySource[billingSourceWallet])
+	}
+	if netBySource[billingSourceSubscription] != 300 {
+		t.Fatalf("subscription net quota = %d", netBySource[billingSourceSubscription])
+	}
+}
+
+func TestGenerateBillingStatementsIsIdempotentForSamePeriod(t *testing.T) {
+	db := setupLogBillingTestDB(t)
+	logs := []*Log{
+		{UserId: 1, Username: "alice", CreatedAt: 10, Type: LogTypeConsume, ModelName: "doubao-seedance-2-0", Quota: 1000, ChannelId: 45, Group: "vip"},
+	}
+	if err := db.Create(&logs).Error; err != nil {
+		t.Fatalf("failed to seed logs: %v", err)
+	}
+	filter := BillingStatementFilter{
+		PeriodStart: 1,
+		PeriodEnd:   40,
+		UserId:      1,
+	}
+	if _, err := GenerateBillingStatements(filter); err != nil {
+		t.Fatalf("first GenerateBillingStatements() error = %v", err)
+	}
+
+	refund := &Log{UserId: 1, Username: "alice", CreatedAt: 20, Type: LogTypeRefund, ModelName: "doubao-seedance-2-0", Quota: 250, ChannelId: 45, Group: "vip"}
+	if err := db.Create(refund).Error; err != nil {
+		t.Fatalf("failed to seed refund: %v", err)
+	}
+	if _, err := GenerateBillingStatements(filter); err != nil {
+		t.Fatalf("second GenerateBillingStatements() error = %v", err)
+	}
+
+	statements, total, err := GetBillingStatements(filter, 0, 100)
+	if err != nil {
+		t.Fatalf("GetBillingStatements() error = %v", err)
+	}
+	if total != 1 || len(statements) != 1 {
+		t.Fatalf("statements total/len = %d/%d", total, len(statements))
+	}
+	if statements[0].NetQuota != 750 {
+		t.Fatalf("net quota = %d", statements[0].NetQuota)
 	}
 }

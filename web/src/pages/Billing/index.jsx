@@ -118,6 +118,9 @@ const BillingPage = () => {
   });
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [statements, setStatements] = useState({ items: [], total: 0 });
+  const [statementsLoading, setStatementsLoading] = useState(false);
+  const [generatingStatements, setGeneratingStatements] = useState(false);
 
   const formInitValues = useMemo(
     () => ({
@@ -164,15 +167,72 @@ const BillingPage = () => {
     [getCurrentValues, t],
   );
 
+  const loadStatements = useCallback(
+    async (values) => {
+      setStatementsLoading(true);
+      try {
+        const params = {
+          ...buildParams(values || getCurrentValues()),
+          p: 1,
+          page_size: 100,
+        };
+        const res = await API.get('/api/billing/statements', { params });
+        if (res.data.success) {
+          const data = res.data.data || {};
+          setStatements({
+            items: Array.isArray(data.items) ? data.items : [],
+            total: data.total || 0,
+          });
+        } else {
+          showError(res.data.message || t('月结快照查询失败'));
+        }
+      } catch (error) {
+        showError(error);
+      } finally {
+        setStatementsLoading(false);
+      }
+    },
+    [getCurrentValues, t],
+  );
+
+  const handleSearch = useCallback(
+    async (values) => {
+      await Promise.all([loadSummary(values), loadStatements(values)]);
+    },
+    [loadSummary, loadStatements],
+  );
+
   useEffect(() => {
     if (formApi) {
-      loadSummary(formInitValues);
+      handleSearch(formInitValues);
     }
-  }, [formApi, formInitValues, loadSummary]);
+  }, [formApi, formInitValues, handleSearch]);
 
   const resetFilters = () => {
     formApi?.reset();
-    setTimeout(() => loadSummary(formInitValues), 0);
+    setTimeout(() => handleSearch(formInitValues), 0);
+  };
+
+  const generateBillingStatements = async () => {
+    setGeneratingStatements(true);
+    try {
+      const values = getCurrentValues();
+      const params = buildParams(values);
+      const res = await API.post('/api/billing/statements/generate', null, {
+        params,
+      });
+      if (res.data.success) {
+        const count = res.data.data?.generated_count || 0;
+        showSuccess(t('已生成 {{count}} 条月结快照', { count }));
+        await loadStatements(values);
+      } else {
+        showError(res.data.message || t('月结快照生成失败'));
+      }
+    } catch (error) {
+      showError(error);
+    } finally {
+      setGeneratingStatements(false);
+    }
   };
 
   const downloadBillingCsv = async () => {
@@ -341,11 +401,84 @@ const BillingPage = () => {
     },
   ];
 
+  const statementColumns = [
+    {
+      title: t('账期开始'),
+      dataIndex: 'period_start',
+      key: 'period_start',
+      width: 170,
+      render: (value) => timestamp2string(value),
+    },
+    {
+      title: t('账期结束'),
+      dataIndex: 'period_end',
+      key: 'period_end',
+      width: 170,
+      render: (value) => timestamp2string(value),
+    },
+    {
+      title: t('用户 ID'),
+      dataIndex: 'user_id',
+      key: 'user_id',
+      width: 100,
+      render: (value) => <Text copyable>{value}</Text>,
+    },
+    {
+      title: t('用户名'),
+      dataIndex: 'username',
+      key: 'username',
+      width: 140,
+      render: (value) => value || '-',
+    },
+    {
+      title: t('模型'),
+      dataIndex: 'model_name',
+      key: 'model_name',
+      width: 220,
+      render: (value) => <Text copyable>{value || '-'}</Text>,
+    },
+    {
+      title: t('资金来源'),
+      dataIndex: 'billing_source',
+      key: 'billing_source',
+      width: 130,
+      render: (value) => {
+        const source = value || 'wallet';
+        return (
+          <Tag color={source === 'subscription' ? 'green' : 'blue'}>
+            {t(BILLING_SOURCE_LABELS[source] || source)}
+          </Tag>
+        );
+      },
+    },
+    {
+      title: t('净扣费'),
+      dataIndex: 'net_quota',
+      key: 'net_quota',
+      width: 140,
+      render: (value) => <Text strong>{renderQuota(value, 6)}</Text>,
+    },
+    {
+      title: t('调用次数'),
+      dataIndex: 'request_count',
+      key: 'request_count',
+      width: 110,
+      render: (value) => formatCount(value),
+    },
+    {
+      title: t('状态'),
+      dataIndex: 'status',
+      key: 'status',
+      width: 100,
+      render: (value) => <Tag>{value || 'closed'}</Tag>,
+    },
+  ];
+
   const searchArea = (
     <Form
       initValues={formInitValues}
       getFormApi={setFormApi}
-      onSubmit={loadSummary}
+      onSubmit={handleSearch}
       allowEmpty
       autoComplete='off'
       layout='vertical'
@@ -478,6 +611,15 @@ const BillingPage = () => {
             >
               {t('导出流水')}
             </Button>
+            <Button
+              type='primary'
+              theme='solid'
+              loading={generatingStatements}
+              onClick={generateBillingStatements}
+              size='small'
+            >
+              {t('生成快照')}
+            </Button>
           </div>
         </div>
       </div>
@@ -534,6 +676,58 @@ const BillingPage = () => {
           pagination={false}
         />
       </CardPro>
+      <Card className='!rounded-xl mt-3' bordered>
+        <div className='flex flex-col md:flex-row md:items-center justify-between gap-2 mb-3'>
+          <div>
+            <Title heading={6} className='!mb-1'>
+              {t('月结快照')}
+            </Title>
+            <Text type='secondary'>
+              {t(
+                '将当前筛选条件固化为账期快照，适合月底财务对账和客户账单留档。',
+              )}
+            </Text>
+          </div>
+          <div className='flex gap-2 justify-end'>
+            <Button
+              type='tertiary'
+              icon={<IconRefresh />}
+              loading={statementsLoading}
+              onClick={() => loadStatements(getCurrentValues())}
+              size='small'
+            >
+              {t('刷新快照')}
+            </Button>
+            <Button
+              type='primary'
+              loading={generatingStatements}
+              onClick={generateBillingStatements}
+              size='small'
+            >
+              {t('生成当前账期快照')}
+            </Button>
+          </div>
+        </div>
+        <CardTable
+          columns={statementColumns}
+          dataSource={(statements.items || []).map((item) => ({
+            ...item,
+            key: item.id,
+          }))}
+          rowKey='key'
+          loading={statementsLoading}
+          scroll={{ x: 'max-content' }}
+          size='small'
+          className='rounded-xl overflow-hidden'
+          empty={<Empty description={t('暂无月结快照')} />}
+          pagination={false}
+        />
+        <Text type='tertiary' size='small'>
+          {t('当前筛选下共有 {{total}} 条快照记录', {
+            total: statements.total || 0,
+          })}
+        </Text>
+      </Card>
     </div>
   );
 };
