@@ -30,6 +30,7 @@ func GetAllTask(c *gin.Context) {
 		TaskID:         c.Query("task_id"),
 		Status:         c.Query("status"),
 		Action:         c.Query("action"),
+		BillingSource:  c.Query("billing_source"),
 		StartTimestamp: startTimestamp,
 		EndTimestamp:   endTimestamp,
 		ChannelID:      c.Query("channel_id"),
@@ -55,6 +56,7 @@ func GetUserTask(c *gin.Context) {
 		TaskID:         c.Query("task_id"),
 		Status:         c.Query("status"),
 		Action:         c.Query("action"),
+		BillingSource:  c.Query("billing_source"),
 		StartTimestamp: startTimestamp,
 		EndTimestamp:   endTimestamp,
 	}

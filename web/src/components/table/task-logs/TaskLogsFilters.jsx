@@ -21,7 +21,45 @@ import React from 'react';
 import { Button, Form } from '@douyinfe/semi-ui';
 import { IconSearch } from '@douyinfe/semi-icons';
 
+import {
+  TASK_ACTION_FIRST_TAIL_GENERATE,
+  TASK_ACTION_GENERATE,
+  TASK_ACTION_REFERENCE_GENERATE,
+  TASK_ACTION_REMIX_GENERATE,
+  TASK_ACTION_TEXT_GENERATE,
+} from '../../../constants/common.constant';
 import { DATE_RANGE_PRESETS } from '../../../constants/console.constants';
+
+const STATUS_OPTIONS = [
+  { value: 'NOT_START', label: '未启动' },
+  { value: 'SUBMITTED', label: '队列中' },
+  { value: 'QUEUED', label: '排队中' },
+  { value: 'IN_PROGRESS', label: '执行中' },
+  { value: 'SUCCESS', label: '成功' },
+  { value: 'FAILURE', label: '失败' },
+];
+
+const ACTION_OPTIONS = [
+  { value: TASK_ACTION_TEXT_GENERATE, label: '文生视频' },
+  { value: TASK_ACTION_GENERATE, label: '图生视频' },
+  { value: TASK_ACTION_FIRST_TAIL_GENERATE, label: '首尾生视频' },
+  { value: TASK_ACTION_REFERENCE_GENERATE, label: '参照生视频' },
+  { value: TASK_ACTION_REMIX_GENERATE, label: '视频Remix' },
+  { value: 'MUSIC', label: '生成音乐' },
+  { value: 'LYRICS', label: '生成歌词' },
+];
+
+const PLATFORM_OPTIONS = [
+  { value: '54', label: 'DoubaoVideo / Seedance' },
+  { value: '45', label: 'VolcEngine / 火山方舟' },
+  { value: 'suno', label: 'Suno' },
+  { value: 'mj', label: 'Midjourney' },
+];
+
+const BILLING_SOURCE_OPTIONS = [
+  { value: 'wallet', label: '钱包' },
+  { value: 'subscription', label: '订阅' },
+];
 
 const TaskLogsFilters = ({
   formInitValues,
@@ -84,6 +122,64 @@ const TaskLogsFilters = ({
               pure
               size='small'
             />
+          )}
+
+          <Form.Select
+            field='platform'
+            placeholder={t('平台')}
+            showClear
+            pure
+            size='small'
+          >
+            {PLATFORM_OPTIONS.map((option) => (
+              <Form.Select.Option key={option.value} value={option.value}>
+                {t(option.label)}
+              </Form.Select.Option>
+            ))}
+          </Form.Select>
+
+          <Form.Select
+            field='action'
+            placeholder={t('类型')}
+            showClear
+            pure
+            size='small'
+          >
+            {ACTION_OPTIONS.map((option) => (
+              <Form.Select.Option key={option.value} value={option.value}>
+                {t(option.label)}
+              </Form.Select.Option>
+            ))}
+          </Form.Select>
+
+          <Form.Select
+            field='status'
+            placeholder={t('任务状态')}
+            showClear
+            pure
+            size='small'
+          >
+            {STATUS_OPTIONS.map((option) => (
+              <Form.Select.Option key={option.value} value={option.value}>
+                {t(option.label)}
+              </Form.Select.Option>
+            ))}
+          </Form.Select>
+
+          {isAdminUser && (
+            <Form.Select
+              field='billing_source'
+              placeholder={t('资金来源')}
+              showClear
+              pure
+              size='small'
+            >
+              {BILLING_SOURCE_OPTIONS.map((option) => (
+                <Form.Select.Option key={option.value} value={option.value}>
+                  {t(option.label)}
+                </Form.Select.Option>
+              ))}
+            </Form.Select>
           )}
         </div>
 

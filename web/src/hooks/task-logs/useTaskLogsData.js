@@ -89,6 +89,10 @@ export const useTaskLogsData = () => {
   const formInitValues = {
     channel_id: '',
     task_id: '',
+    platform: '',
+    action: '',
+    status: '',
+    billing_source: '',
     dateRange: [
       timestamp2string(zeroNow.getTime() / 1000),
       timestamp2string(now.getTime() / 1000 + 3600),
@@ -204,6 +208,10 @@ export const useTaskLogsData = () => {
     return {
       channel_id: formValues.channel_id || '',
       task_id: formValues.task_id || '',
+      platform: formValues.platform || '',
+      action: formValues.action || '',
+      status: formValues.status || '',
+      billing_source: formValues.billing_source || '',
       start_timestamp,
       end_timestamp,
     };
@@ -230,13 +238,35 @@ export const useTaskLogsData = () => {
   // Load logs function
   const loadLogs = async (page = 1, size = pageSize) => {
     setLoading(true);
-    const { channel_id, task_id, start_timestamp, end_timestamp } =
-      getFormValues();
+    const {
+      channel_id,
+      task_id,
+      platform,
+      action,
+      status,
+      billing_source,
+      start_timestamp,
+      end_timestamp,
+    } = getFormValues();
     let localStartTimestamp = parseInt(Date.parse(start_timestamp) / 1000);
     let localEndTimestamp = parseInt(Date.parse(end_timestamp) / 1000);
+    const params = new URLSearchParams({
+      p: String(page),
+      page_size: String(size),
+      task_id,
+      platform,
+      action,
+      status,
+      start_timestamp: String(localStartTimestamp),
+      end_timestamp: String(localEndTimestamp),
+    });
+    if (isAdminUser) {
+      params.set('channel_id', channel_id);
+      params.set('billing_source', billing_source);
+    }
     let url = isAdminUser
-      ? `/api/task/?p=${page}&page_size=${size}&channel_id=${channel_id}&task_id=${task_id}&start_timestamp=${localStartTimestamp}&end_timestamp=${localEndTimestamp}`
-      : `/api/task/self?p=${page}&page_size=${size}&task_id=${task_id}&start_timestamp=${localStartTimestamp}&end_timestamp=${localEndTimestamp}`;
+      ? `/api/task/?${params.toString()}`
+      : `/api/task/self?${params.toString()}`;
     const res = await API.get(url);
     const { success, message, data } = res.data;
     if (success) {
