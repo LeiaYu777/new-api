@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -18,6 +19,7 @@ import (
 	taskcommon "github.com/QuantumNous/new-api/relay/channel/task/taskcommon"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/service"
+	"github.com/QuantumNous/new-api/setting/system_setting"
 
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
@@ -233,7 +235,7 @@ func (a *TaskAdaptor) convertToRequestPayload(req *relaycommon.TaskSubmitReq) (*
 	r := requestPayload{
 		Model:                 req.Model,
 		Content:               []ContentItem{},
-		CallbackURL:           req.CallbackURL,
+		CallbackURL:           strings.TrimSpace(req.CallbackURL),
 		ReturnLastFrame:       req.ReturnLastFrame,
 		ServiceTier:           req.ServiceTier,
 		ExecutionExpiresAfter: req.ExecutionExpiresAfter,
@@ -267,6 +269,7 @@ func (a *TaskAdaptor) convertToRequestPayload(req *relaycommon.TaskSubmitReq) (*
 	// Add images if present
 	if req.HasImage() {
 		for _, imgURL := range req.Images {
+			imgURL = strings.TrimSpace(imgURL)
 			r.Content = append(r.Content, ContentItem{
 				Type: "image_url",
 				ImageURL: &ImageURL{
@@ -397,6 +400,59 @@ func (a *TaskAdaptor) validateSeedance2Request(req *relaycommon.TaskSubmitReq) *
 	}
 	if body.Ratio != "" && !seedanceAllowedRatios[body.Ratio] {
 		return service.TaskErrorWrapperLocal(fmt.Errorf("unsupported ratio: %s", body.Ratio), "invalid_ratio", http.StatusBadRequest)
+	}
+	if taskErr := validateSeedance2ExternalURLs(body); taskErr != nil {
+		return taskErr
+	}
+	return nil
+}
+
+func validateSeedance2ExternalURLs(body *requestPayload) *dto.TaskError {
+	if body.CallbackURL != "" {
+		if err := validateSeedance2URL(body.CallbackURL); err != nil {
+			return service.TaskErrorWrapperLocal(fmt.Errorf("unsafe callback_url: %w", err), "invalid_callback_url", http.StatusBadRequest)
+		}
+	}
+
+	for index, item := range body.Content {
+		if item.ImageURL != nil {
+			if err := validateSeedance2URL(item.ImageURL.URL); err != nil {
+				return service.TaskErrorWrapperLocal(fmt.Errorf("unsafe image URL at index %d: %w", index, err), "invalid_image_url", http.StatusBadRequest)
+			}
+		}
+		if item.Video != nil {
+			if err := validateSeedance2URL(item.Video.URL); err != nil {
+				return service.TaskErrorWrapperLocal(fmt.Errorf("unsafe video URL at index %d: %w", index, err), "invalid_video_url", http.StatusBadRequest)
+			}
+		}
+	}
+
+	return nil
+}
+
+func validateSeedance2URL(rawURL string) error {
+	rawURL = strings.TrimSpace(rawURL)
+	if rawURL == "" {
+		return fmt.Errorf("url is required")
+	}
+
+	parsedURL, err := url.Parse(rawURL)
+	if err != nil {
+		return fmt.Errorf("invalid URL format: %w", err)
+	}
+	if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
+		return fmt.Errorf("unsupported URL scheme: %s", parsedURL.Scheme)
+	}
+	if parsedURL.Host == "" {
+		return fmt.Errorf("URL host is required")
+	}
+	if parsedURL.User != nil {
+		return fmt.Errorf("URL credentials are not allowed")
+	}
+
+	fetchSetting := system_setting.GetFetchSetting()
+	if err := common.ValidateURLWithFetchSetting(rawURL, fetchSetting.EnableSSRFProtection, fetchSetting.AllowPrivateIp, fetchSetting.DomainFilterMode, fetchSetting.IpFilterMode, fetchSetting.DomainList, fetchSetting.IpList, fetchSetting.AllowedPorts, fetchSetting.ApplyIPFilterForDomain); err != nil {
+		return err
 	}
 	return nil
 }

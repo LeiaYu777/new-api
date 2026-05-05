@@ -55,6 +55,17 @@ SEEDANCE_MAX_IMAGES=8
 2. 生产首日建议保留固定价格兜底。
 3. 如果上游 usage 经常缺失，不建议打开 `SEEDANCE_BILLING_STRICT_USAGE=true`，否则成功视频任务可能因为 usage 缺失被判失败并退款。
 
+### 2.4 远程素材 URL 安全配置
+
+如客户要通过 `image` 或 `images` 传外部素材 URL，生产环境建议完成以下配置：
+
+1. 系统 Fetch/SSRF 防护保持开启。
+2. 不允许私有 IP、内网域名、链路本地地址或非 HTTP(S) URL。
+3. 只允许客户对象存储、CDN 或素材域名作为 allowlist。
+4. 不在素材 URL 中携带账号密码、长期签名或敏感 Token。
+
+Seedance 2.0 提交前会校验图片、视频和 `callback_url`，非法 URL 应在本地返回 400，不应产生上游任务和扣费。
+
 ## 3. 钱包扣费验收
 
 ### 3.1 准备用户和令牌
@@ -196,6 +207,31 @@ SEEDANCE_BILLING_STRICT_USAGE=true
 2. 预扣额度退款。
 3. `/console/billing` 出现退款记录。
 
+### 5.4 非法远程素材 URL
+
+操作：
+
+```bash
+curl -sS "${BASE_URL}/v1/video/generations" \
+  -H "Authorization: Bearer ${API_KEY}" \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "model": "doubao-seedance-2-0",
+    "prompt": "一只橘猫在江南古镇灯笼下奔跑",
+    "images": ["http://127.0.0.1/admin"],
+    "duration": 5,
+    "resolution": "720p",
+    "ratio": "16:9"
+  }'
+```
+
+预期结果：
+
+1. 请求返回 `invalid_image_url`。
+2. 不创建上游任务。
+3. 不产生消费扣费。
+4. 如果传入 `callback_url` 带账号密码或内网地址，应返回 `invalid_callback_url`。
+
 ## 6. 验收证据
 
 每次验收建议保存以下证据：
@@ -225,3 +261,4 @@ SEEDANCE_BILLING_STRICT_USAGE=true
 3. 没有退款：确认任务轮询 worker 正常运行。
 4. CSV 缺少资金来源：确认任务日志 `other` 字段包含 `billing_source`。
 5. 任务长期处理中：检查上游任务状态、轮询间隔和任务超时配置。
+6. 图片或 callback URL 被拒绝：检查 Fetch/SSRF 设置、端口白名单和素材域名 allowlist。
