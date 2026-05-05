@@ -104,6 +104,19 @@ const buildParams = (values = {}) => {
 const formatCount = (value) =>
   Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
 
+const formatPercent = (value) => `${(Number(value || 0) * 100).toFixed(1)}%`;
+
+const alertColor = (severity) =>
+  severity === 'critical' ? 'red' : severity === 'warning' ? 'orange' : 'green';
+
+const formatAlertValue = (alert, field) => {
+  const value = Number(alert?.[field] || 0);
+  if (String(alert?.key || '').includes('rate')) {
+    return `${value.toFixed(1)}%`;
+  }
+  return formatCount(value);
+};
+
 const BillingPage = () => {
   const { t } = useTranslation();
   const [formApi, setFormApi] = useState(null);
@@ -121,6 +134,17 @@ const BillingPage = () => {
   const [statements, setStatements] = useState({ items: [], total: 0 });
   const [statementsLoading, setStatementsLoading] = useState(false);
   const [generatingStatements, setGeneratingStatements] = useState(false);
+  const [alertMetrics, setAlertMetrics] = useState({
+    alerts: [],
+    refund_rate: 0,
+    task_failure_rate: 0,
+    pending_task_count: 0,
+    timed_out_task_count: 0,
+    worker_lag_seconds: 0,
+    upstream_error_count: 0,
+    insufficient_balance_count: 0,
+  });
+  const [alertsLoading, setAlertsLoading] = useState(false);
 
   const formInitValues = useMemo(
     () => ({
@@ -195,11 +219,45 @@ const BillingPage = () => {
     [getCurrentValues, t],
   );
 
+  const loadAlerts = useCallback(
+    async (values) => {
+      setAlertsLoading(true);
+      try {
+        const params = buildParams(values || getCurrentValues());
+        const res = await API.get('/api/billing/alerts', { params });
+        if (res.data.success) {
+          const data = res.data.data || {};
+          setAlertMetrics({
+            alerts: Array.isArray(data.alerts) ? data.alerts : [],
+            refund_rate: data.refund_rate || 0,
+            task_failure_rate: data.task_failure_rate || 0,
+            pending_task_count: data.pending_task_count || 0,
+            timed_out_task_count: data.timed_out_task_count || 0,
+            worker_lag_seconds: data.worker_lag_seconds || 0,
+            upstream_error_count: data.upstream_error_count || 0,
+            insufficient_balance_count: data.insufficient_balance_count || 0,
+          });
+        } else {
+          showError(res.data.message || t('账单告警查询失败'));
+        }
+      } catch (error) {
+        showError(error);
+      } finally {
+        setAlertsLoading(false);
+      }
+    },
+    [getCurrentValues, t],
+  );
+
   const handleSearch = useCallback(
     async (values) => {
-      await Promise.all([loadSummary(values), loadStatements(values)]);
+      await Promise.all([
+        loadSummary(values),
+        loadStatements(values),
+        loadAlerts(values),
+      ]);
     },
-    [loadSummary, loadStatements],
+    [loadSummary, loadStatements, loadAlerts],
   );
 
   useEffect(() => {
@@ -474,6 +532,53 @@ const BillingPage = () => {
     },
   ];
 
+  const alertStats = [
+    {
+      title: t('退款率'),
+      value: formatPercent(alertMetrics.refund_rate),
+      desc: t('退款流水数 / 消费流水数'),
+      severity: alertMetrics.refund_rate >= 0.2 ? 'warning' : 'ok',
+    },
+    {
+      title: t('任务失败率'),
+      value: formatPercent(alertMetrics.task_failure_rate),
+      desc: t('失败任务 / 已完成任务'),
+      severity: alertMetrics.task_failure_rate >= 0.3 ? 'warning' : 'ok',
+    },
+    {
+      title: t('待处理任务'),
+      value: formatCount(alertMetrics.pending_task_count),
+      desc: t('尚未成功或失败的异步任务'),
+      severity: alertMetrics.pending_task_count > 0 ? 'warning' : 'ok',
+    },
+    {
+      title: t('超时任务'),
+      value: formatCount(alertMetrics.timed_out_task_count),
+      desc: t('超过阈值仍未完成'),
+      severity: alertMetrics.timed_out_task_count > 0 ? 'critical' : 'ok',
+    },
+    {
+      title: t('Worker 滞后'),
+      value: `${formatCount(alertMetrics.worker_lag_seconds)}s`,
+      desc: t('最旧待处理任务距上次更新'),
+      severity: alertMetrics.worker_lag_seconds >= 900 ? 'critical' : 'ok',
+    },
+    {
+      title: t('上游/额度信号'),
+      value: formatCount(
+        alertMetrics.upstream_error_count +
+          alertMetrics.insufficient_balance_count,
+      ),
+      desc: t('上游错误与余额不足信号'),
+      severity:
+        alertMetrics.upstream_error_count +
+          alertMetrics.insufficient_balance_count >
+        0
+          ? 'warning'
+          : 'ok',
+    },
+  ];
+
   const searchArea = (
     <Form
       initValues={formInitValues}
@@ -676,6 +781,79 @@ const BillingPage = () => {
           pagination={false}
         />
       </CardPro>
+      <Card className='!rounded-xl mt-3' bordered>
+        <div className='flex flex-col md:flex-row md:items-center justify-between gap-2 mb-3'>
+          <div>
+            <Title heading={6} className='!mb-1'>
+              {t('生产监控与告警')}
+            </Title>
+            <Text type='secondary'>
+              {t(
+                '基于当前筛选窗口统计退款、失败、超时、余额不足和上游错误，帮助定位 Seedance 2.0 计费链路异常。',
+              )}
+            </Text>
+          </div>
+          <Button
+            type='tertiary'
+            icon={<IconRefresh />}
+            loading={alertsLoading}
+            onClick={() => loadAlerts(getCurrentValues())}
+            size='small'
+          >
+            {t('刷新告警')}
+          </Button>
+        </div>
+        <div className='grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-2 mb-3'>
+          {alertStats.map((item) => (
+            <Card key={item.title} className='!rounded-xl' bordered>
+              <div className='flex flex-col gap-1'>
+                <div className='flex items-center justify-between gap-2'>
+                  <Text type='secondary' size='small'>
+                    {item.title}
+                  </Text>
+                  <Tag color={alertColor(item.severity)}>
+                    {item.severity === 'ok' ? t('正常') : t('关注')}
+                  </Tag>
+                </div>
+                <Text strong className='text-lg'>
+                  {item.value}
+                </Text>
+                <Text type='tertiary' size='small'>
+                  {item.desc}
+                </Text>
+              </div>
+            </Card>
+          ))}
+        </div>
+        {alertMetrics.alerts.length > 0 ? (
+          <div className='flex flex-col gap-2'>
+            {alertMetrics.alerts.map((alert) => (
+              <div
+                key={alert.key}
+                className='flex flex-col md:flex-row md:items-start gap-2 justify-between border border-solid border-[var(--semi-color-border)] rounded-lg p-3'
+              >
+                <div className='flex flex-col gap-1'>
+                  <div className='flex items-center gap-2'>
+                    <Tag color={alertColor(alert.severity)}>
+                      {alert.severity === 'critical' ? t('严重') : t('警告')}
+                    </Tag>
+                    <Text strong>{t(alert.message)}</Text>
+                  </div>
+                  <Text type='secondary'>{t(alert.recommendation)}</Text>
+                </div>
+                <Text type='tertiary' size='small'>
+                  {t('当前值')}: {formatAlertValue(alert, 'value')}
+                  {alert.threshold > 0
+                    ? ` / ${t('阈值')}: ${formatAlertValue(alert, 'threshold')}`
+                    : ''}
+                </Text>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <Empty description={t('当前筛选窗口暂无告警')} />
+        )}
+      </Card>
       <Card className='!rounded-xl mt-3' bordered>
         <div className='flex flex-col md:flex-row md:items-center justify-between gap-2 mb-3'>
           <div>

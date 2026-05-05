@@ -300,6 +300,7 @@ func SetApiRouter(router *gin.Engine) {
 		billingRoute.Use(middleware.AdminAuth())
 		{
 			billingRoute.GET("/summary", controller.GetBillingSummary)
+			billingRoute.GET("/alerts", controller.GetBillingAlerts)
 			billingRoute.GET("/export", controller.ExportBillingLogs)
 			billingRoute.GET("/statements", controller.GetBillingStatements)
 			billingRoute.POST("/statements/generate", controller.GenerateBillingStatements)

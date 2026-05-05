@@ -187,6 +187,23 @@ func parseBillingStatementFilter(c *gin.Context) model.BillingStatementFilter {
 	}
 }
 
+func parseBillingAlertFilter(c *gin.Context) model.BillingAlertFilter {
+	userId, _ := strconv.Atoi(c.Query("user_id"))
+	channel, _ := strconv.Atoi(c.Query("channel"))
+	timeoutSeconds, _ := strconv.ParseInt(c.Query("task_timeout_seconds"), 10, 64)
+	return model.BillingAlertFilter{
+		StartTimestamp:     parseBillingTimestampQuery(c, "start_timestamp", "period_start"),
+		EndTimestamp:       parseBillingTimestampQuery(c, "end_timestamp", "period_end"),
+		Username:           c.Query("username"),
+		UserId:             userId,
+		ModelName:          c.Query("model_name"),
+		Channel:            channel,
+		Group:              c.Query("group"),
+		BillingSource:      c.Query("billing_source"),
+		TaskTimeoutSeconds: timeoutSeconds,
+	}
+}
+
 func GetBillingSummary(c *gin.Context) {
 	startTimestamp, _ := strconv.ParseInt(c.Query("start_timestamp"), 10, 64)
 	endTimestamp, _ := strconv.ParseInt(c.Query("end_timestamp"), 10, 64)
@@ -204,6 +221,16 @@ func GetBillingSummary(c *gin.Context) {
 		return
 	}
 	common.ApiSuccess(c, summary)
+}
+
+func GetBillingAlerts(c *gin.Context) {
+	filter := parseBillingAlertFilter(c)
+	metrics, err := model.GetBillingAlertMetrics(filter)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	common.ApiSuccess(c, metrics)
 }
 
 func GetBillingStatements(c *gin.Context) {

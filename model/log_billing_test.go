@@ -34,7 +34,7 @@ func setupLogBillingTestDB(t *testing.T) *gorm.DB {
 	}
 	LOG_DB = db
 	DB = db
-	if err := db.AutoMigrate(&Log{}, &BillingStatement{}); err != nil {
+	if err := db.AutoMigrate(&Log{}, &BillingStatement{}, &Task{}); err != nil {
 		t.Fatalf("failed to migrate logs: %v", err)
 	}
 	t.Cleanup(func() {
@@ -289,5 +289,60 @@ func TestGenerateBillingStatementsIsIdempotentForSamePeriod(t *testing.T) {
 	}
 	if statements[0].NetQuota != 750 {
 		t.Fatalf("net quota = %d", statements[0].NetQuota)
+	}
+}
+
+func TestGetBillingAlertMetricsRaisesOperationalSignals(t *testing.T) {
+	db := setupLogBillingTestDB(t)
+	now := common.GetTimestamp()
+	logs := []*Log{
+		{UserId: 1, Username: "alice", CreatedAt: now - 100, Type: LogTypeConsume, ModelName: "doubao-seedance-2-0", Quota: 1000, ChannelId: 45, Group: "vip"},
+		{UserId: 1, Username: "alice", CreatedAt: now - 90, Type: LogTypeRefund, ModelName: "doubao-seedance-2-0", Quota: 500, ChannelId: 45, Group: "vip"},
+		{UserId: 1, Username: "alice", CreatedAt: now - 80, Type: LogTypeUnknown, ModelName: "doubao-seedance-2-0", Content: "用户余额不足", ChannelId: 45, Group: "vip"},
+	}
+	if err := db.Create(&logs).Error; err != nil {
+		t.Fatalf("failed to seed logs: %v", err)
+	}
+	tasks := []*Task{
+		{UserId: 1, SubmitTime: now - 100, FinishTime: now - 50, UpdatedAt: now - 50, Status: TaskStatusSuccess, ChannelId: 45, Group: "vip", Properties: Properties{OriginModelName: "doubao-seedance-2-0"}},
+		{UserId: 1, SubmitTime: now - 100, FinishTime: now - 40, UpdatedAt: now - 40, Status: TaskStatusFailure, FailReason: "upstream returned error", ChannelId: 45, Group: "vip", Properties: Properties{OriginModelName: "doubao-seedance-2-0"}},
+		{UserId: 1, SubmitTime: now - 7200, UpdatedAt: now - 3600, Status: TaskStatusInProgress, ChannelId: 45, Group: "vip", Properties: Properties{OriginModelName: "doubao-seedance-2-0"}},
+	}
+	if err := db.Create(&tasks).Error; err != nil {
+		t.Fatalf("failed to seed tasks: %v", err)
+	}
+
+	metrics, err := GetBillingAlertMetrics(BillingAlertFilter{
+		StartTimestamp:     now - 200,
+		EndTimestamp:       now + 1,
+		ModelName:          "doubao-seedance-2-0%",
+		UserId:             1,
+		Channel:            45,
+		Group:              "vip",
+		TaskTimeoutSeconds: 3600,
+	})
+	if err != nil {
+		t.Fatalf("GetBillingAlertMetrics() error = %v", err)
+	}
+	if metrics.RefundCount != 1 || metrics.RequestCount != 1 {
+		t.Fatalf("refund/request count = %d/%d", metrics.RefundCount, metrics.RequestCount)
+	}
+	if metrics.TaskSuccessCount != 1 || metrics.TaskFailureCount != 1 {
+		t.Fatalf("task success/failure count = %d/%d", metrics.TaskSuccessCount, metrics.TaskFailureCount)
+	}
+	if metrics.PendingTaskCount != 1 || metrics.TimedOutTaskCount != 1 {
+		t.Fatalf("pending/timedout count = %d/%d", metrics.PendingTaskCount, metrics.TimedOutTaskCount)
+	}
+	if metrics.UpstreamErrorCount != 1 || metrics.InsufficientBalanceCount != 1 {
+		t.Fatalf("upstream/insufficient count = %d/%d", metrics.UpstreamErrorCount, metrics.InsufficientBalanceCount)
+	}
+	alertKeys := map[string]bool{}
+	for _, alert := range metrics.Alerts {
+		alertKeys[alert.Key] = true
+	}
+	for _, key := range []string{"refund_rate", "task_failure_rate", "timed_out_tasks", "worker_lag", "insufficient_balance", "upstream_errors"} {
+		if !alertKeys[key] {
+			t.Fatalf("expected alert %s in %+v", key, metrics.Alerts)
+		}
 	}
 }
