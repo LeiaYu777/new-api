@@ -50,6 +50,24 @@ type TaskDto struct {
 	Properties any             `json:"properties"`
 	Username   string          `json:"username,omitempty"`
 	Data       json.RawMessage `json:"data"`
+	Billing    *TaskBillingDto `json:"billing,omitempty"`
+}
+
+type TaskBillingDto struct {
+	BillingSource     string             `json:"billing_source,omitempty"`
+	SubscriptionId    int                `json:"subscription_id,omitempty"`
+	TokenId           int                `json:"token_id,omitempty"`
+	ModelName         string             `json:"model_name,omitempty"`
+	SettlementStatus  string             `json:"settlement_status,omitempty"`
+	PreConsumedQuota  int                `json:"pre_consumed_quota,omitempty"`
+	ActualQuota       int                `json:"actual_quota,omitempty"`
+	RefundQuota       int                `json:"refund_quota,omitempty"`
+	PerCallBilling    bool               `json:"per_call_billing,omitempty"`
+	ModelPrice        float64            `json:"model_price,omitempty"`
+	GroupRatio        float64            `json:"group_ratio,omitempty"`
+	ModelRatio        float64            `json:"model_ratio,omitempty"`
+	OtherRatios       map[string]float64 `json:"other_ratios,omitempty"`
+	UpstreamModelName string             `json:"upstream_model_name,omitempty"`
 }
 
 type FetchReq struct {

@@ -539,7 +539,11 @@ func mapTaskStatusToSimple(status model.TaskStatus) string {
 }
 
 func TaskModel2Dto(task *model.Task) *dto.TaskDto {
-	return &dto.TaskDto{
+	return TaskModel2DtoWithBilling(task, false)
+}
+
+func TaskModel2DtoWithBilling(task *model.Task, includeBilling bool) *dto.TaskDto {
+	taskDto := &dto.TaskDto{
 		ID:         task.ID,
 		CreatedAt:  task.CreatedAt,
 		UpdatedAt:  task.UpdatedAt,
@@ -561,4 +565,59 @@ func TaskModel2Dto(task *model.Task) *dto.TaskDto {
 		Username:   task.Username,
 		Data:       task.Data,
 	}
+	if includeBilling {
+		taskDto.Billing = buildTaskBillingDto(task)
+	}
+	return taskDto
+}
+
+func buildTaskBillingDto(task *model.Task) *dto.TaskBillingDto {
+	privateData := task.PrivateData
+	billingContext := privateData.BillingContext
+	hasBillingData := privateData.BillingSource != "" ||
+		privateData.SubscriptionId > 0 ||
+		privateData.TokenId > 0 ||
+		billingContext != nil ||
+		task.Quota != 0
+	if !hasBillingData {
+		return nil
+	}
+
+	modelName := task.Properties.OriginModelName
+	if billingContext != nil && billingContext.OriginModelName != "" {
+		modelName = billingContext.OriginModelName
+	}
+	if modelName == "" {
+		modelName = task.Properties.UpstreamModelName
+	}
+
+	taskBilling := &dto.TaskBillingDto{
+		BillingSource:     privateData.BillingSource,
+		SubscriptionId:    privateData.SubscriptionId,
+		TokenId:           privateData.TokenId,
+		ModelName:         modelName,
+		SettlementStatus:  "pre_consumed",
+		PreConsumedQuota:  task.Quota,
+		UpstreamModelName: task.Properties.UpstreamModelName,
+	}
+
+	switch task.Status {
+	case model.TaskStatusSuccess:
+		taskBilling.SettlementStatus = "settled"
+		taskBilling.PreConsumedQuota = 0
+		taskBilling.ActualQuota = task.Quota
+	case model.TaskStatusFailure:
+		taskBilling.SettlementStatus = "refunded"
+		taskBilling.PreConsumedQuota = 0
+		taskBilling.RefundQuota = task.Quota
+	}
+
+	if billingContext != nil {
+		taskBilling.PerCallBilling = billingContext.PerCallBilling
+		taskBilling.ModelPrice = billingContext.ModelPrice
+		taskBilling.GroupRatio = billingContext.GroupRatio
+		taskBilling.ModelRatio = billingContext.ModelRatio
+		taskBilling.OtherRatios = billingContext.OtherRatios
+	}
+	return taskBilling
 }

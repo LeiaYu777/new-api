@@ -18,7 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 
 import React from 'react';
-import { Progress, Tag, Tooltip, Typography } from '@douyinfe/semi-ui';
+import { Popover, Progress, Tag, Tooltip, Typography } from '@douyinfe/semi-ui';
 import {
   Music,
   FileText,
@@ -42,7 +42,7 @@ import {
   TASK_ACTION_REMIX_GENERATE,
 } from '../../../constants/common.constant';
 import { CHANNEL_OPTIONS } from '../../../constants/channel.constants';
-import { stringToColor } from '../../../helpers/render';
+import { renderQuota, stringToColor } from '../../../helpers/render';
 import { Avatar, Space } from '@douyinfe/semi-ui';
 
 const colors = [
@@ -233,6 +233,135 @@ const renderStatus = (type, t) => {
   }
 };
 
+const getBillingDisplay = (record) => {
+  const billing = record.billing || {};
+  const settlementStatus = billing.settlement_status || 'unknown';
+  const displayQuota =
+    billing.actual_quota ||
+    billing.pre_consumed_quota ||
+    billing.refund_quota ||
+    record.quota ||
+    0;
+  return {
+    billing,
+    displayQuota,
+    source: billing.billing_source || (displayQuota ? 'wallet' : ''),
+    settlementStatus,
+  };
+};
+
+const renderBillingSource = (source, t) => {
+  if (source === 'subscription') {
+    return (
+      <Tag color='teal' shape='circle'>
+        {t('订阅')}
+      </Tag>
+    );
+  }
+  if (source === 'wallet') {
+    return (
+      <Tag color='green' shape='circle'>
+        {t('钱包')}
+      </Tag>
+    );
+  }
+  return (
+    <Tag color='grey' shape='circle'>
+      {t('未知')}
+    </Tag>
+  );
+};
+
+const renderSettlementStatus = (status, t) => {
+  switch (status) {
+    case 'settled':
+      return (
+        <Tag color='green' shape='circle'>
+          {t('已结算')}
+        </Tag>
+      );
+    case 'refunded':
+      return (
+        <Tag color='orange' shape='circle'>
+          {t('已退款')}
+        </Tag>
+      );
+    case 'pre_consumed':
+      return (
+        <Tag color='blue' shape='circle'>
+          {t('已预扣')}
+        </Tag>
+      );
+    default:
+      return (
+        <Tag color='grey' shape='circle'>
+          {t('未知')}
+        </Tag>
+      );
+  }
+};
+
+const renderBillingPopover = (record, t) => {
+  const { billing, displayQuota, source, settlementStatus } =
+    getBillingDisplay(record);
+  const otherRatios = billing.other_ratios || {};
+  const ratioLines = Object.entries(otherRatios).map(([key, value]) => (
+    <div key={key}>
+      {key}: {Number(value).toFixed(4)}
+    </div>
+  ));
+
+  return (
+    <Space vertical align='start' style={{ minWidth: 220, lineHeight: 1.7 }}>
+      <div>
+        {t('资金来源')}：{source || '-'}
+      </div>
+      <div>
+        {t('结算状态')}：{settlementStatus}
+      </div>
+      <div>
+        {t('展示额度')}：{renderQuota(displayQuota)}
+      </div>
+      <div>
+        {t('模型')}：
+        {billing.model_name || record.properties?.origin_model_name || '-'}
+      </div>
+      {billing.subscription_id ? (
+        <div>
+          {t('订阅ID')}：{billing.subscription_id}
+        </div>
+      ) : null}
+      {billing.token_id ? (
+        <div>
+          {t('令牌ID')}：{billing.token_id}
+        </div>
+      ) : null}
+      {billing.per_call_billing ? <div>{t('按次固定价格计费')}</div> : null}
+      {billing.model_price ? (
+        <div>
+          {t('模型价格')}：{billing.model_price}
+        </div>
+      ) : null}
+      {billing.group_ratio ? (
+        <div>
+          {t('分组倍率')}：{Number(billing.group_ratio).toFixed(4)}
+        </div>
+      ) : null}
+      {billing.model_ratio ? (
+        <div>
+          {t('模型倍率')}：{Number(billing.model_ratio).toFixed(4)}
+        </div>
+      ) : null}
+      {ratioLines.length > 0 ? (
+        <div>
+          <Typography.Text strong>{t('附加倍率')}</Typography.Text>
+          {ratioLines}
+        </div>
+      ) : null}
+    </Space>
+  );
+};
+
 export const getTaskLogsColumns = ({
   t,
   COLUMN_KEYS,
@@ -373,6 +502,38 @@ export const getTaskLogsColumns = ({
               />
             )}
           </div>
+        );
+      },
+    },
+    {
+      key: COLUMN_KEYS.BILLING,
+      title: t('计费'),
+      dataIndex: 'billing',
+      render: (text, record) => {
+        if (!isAdminUser) {
+          return <></>;
+        }
+        const { displayQuota, source, settlementStatus } =
+          getBillingDisplay(record);
+        if (!displayQuota && !source) {
+          return '-';
+        }
+        return (
+          <Popover
+            position='left'
+            showArrow
+            content={renderBillingPopover(record, t)}
+          >
+            <Space vertical align='start' spacing={2}>
+              <Space spacing={4}>
+                {renderBillingSource(source, t)}
+                {renderSettlementStatus(settlementStatus, t)}
+              </Space>
+              <Typography.Text strong>
+                {renderQuota(displayQuota)}
+              </Typography.Text>
+            </Space>
+          </Popover>
         );
       },
     },

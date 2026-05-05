@@ -46,6 +46,7 @@ export const useTaskLogsData = () => {
     TASK_ID: 'task_id',
     TASK_STATUS: 'task_status',
     PROGRESS: 'progress',
+    BILLING: 'billing',
     FAIL_REASON: 'fail_reason',
     RESULT_URL: 'result_url',
   };
@@ -138,6 +139,7 @@ export const useTaskLogsData = () => {
       [COLUMN_KEYS.TASK_ID]: true,
       [COLUMN_KEYS.TASK_STATUS]: true,
       [COLUMN_KEYS.PROGRESS]: true,
+      [COLUMN_KEYS.BILLING]: isAdminUser,
       [COLUMN_KEYS.FAIL_REASON]: true,
       [COLUMN_KEYS.RESULT_URL]: true,
     };
