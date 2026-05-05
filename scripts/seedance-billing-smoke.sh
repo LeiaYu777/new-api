@@ -1,0 +1,101 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Smoke test for the Seedance 2.0 billing path:
+# API key quota/subscription -> submit video task -> poll task result.
+#
+# Required:
+#   API_KEY=sk-...
+#
+# Optional:
+#   BASE_URL=http://localhost:3000
+#   MODEL=doubao-seedance-2-0
+#   PROMPT="..."
+#   DURATION=5
+#   RESOLUTION=720p
+#   RATIO=16:9
+#   GENERATE_AUDIO=false
+#   POLL_INTERVAL=5
+#   POLL_ATTEMPTS=36
+
+BASE_URL="${BASE_URL:-http://localhost:3000}"
+MODEL="${MODEL:-doubao-seedance-2-0}"
+PROMPT="${PROMPT:-A cinematic product video of a futuristic SaaS dashboard, smooth camera motion}"
+DURATION="${DURATION:-5}"
+RESOLUTION="${RESOLUTION:-720p}"
+RATIO="${RATIO:-16:9}"
+GENERATE_AUDIO="${GENERATE_AUDIO:-false}"
+POLL_INTERVAL="${POLL_INTERVAL:-5}"
+POLL_ATTEMPTS="${POLL_ATTEMPTS:-36}"
+
+if [[ -z "${API_KEY:-}" ]]; then
+  echo "API_KEY is required, for example: API_KEY=sk-xxx $0" >&2
+  exit 2
+fi
+
+if ! command -v jq >/dev/null 2>&1; then
+  echo "jq is required for this smoke script" >&2
+  exit 2
+fi
+
+submit_payload="$(
+  jq -n \
+    --arg model "$MODEL" \
+    --arg prompt "$PROMPT" \
+    --arg resolution "$RESOLUTION" \
+    --arg ratio "$RATIO" \
+    --argjson duration "$DURATION" \
+    --argjson generate_audio "$GENERATE_AUDIO" \
+    '{
+      model: $model,
+      prompt: $prompt,
+      duration: $duration,
+      resolution: $resolution,
+      ratio: $ratio,
+      generate_audio: $generate_audio
+    }'
+)"
+
+echo "Submitting Seedance 2.0 task to ${BASE_URL}/v1/video/generations"
+submit_response="$(
+  curl -fsS \
+    -H "Authorization: Bearer ${API_KEY}" \
+    -H "Content-Type: application/json" \
+    -d "$submit_payload" \
+    "${BASE_URL}/v1/video/generations"
+)"
+echo "$submit_response" | jq .
+
+task_id="$(echo "$submit_response" | jq -r '.task_id // .id // empty')"
+if [[ -z "$task_id" || "$task_id" == "null" ]]; then
+  echo "No task_id found in submit response" >&2
+  exit 1
+fi
+
+echo "Polling task: ${task_id}"
+for ((i = 1; i <= POLL_ATTEMPTS; i++)); do
+  poll_response="$(
+    curl -fsS \
+      -H "Authorization: Bearer ${API_KEY}" \
+      "${BASE_URL}/v1/video/generations/${task_id}"
+  )"
+  status="$(echo "$poll_response" | jq -r '.status // .data.status // empty')"
+  echo "Attempt ${i}/${POLL_ATTEMPTS}: status=${status:-unknown}"
+  echo "$poll_response" | jq .
+
+  case "$status" in
+    completed | succeeded | SUCCESS)
+      echo "Seedance task completed. Check /console/billing for consume/refund/net quota."
+      exit 0
+      ;;
+    failed | FAILURE)
+      echo "Seedance task failed. Check /console/billing for refund entry."
+      exit 1
+      ;;
+  esac
+
+  sleep "$POLL_INTERVAL"
+done
+
+echo "Task did not finish within polling window. Check task logs and /console/billing later."
+exit 1

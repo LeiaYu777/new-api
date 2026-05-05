@@ -175,6 +175,13 @@ func getLastLog(t *testing.T) *model.Log {
 	return &log
 }
 
+func getLogOther(t *testing.T, log *model.Log) map[string]interface{} {
+	t.Helper()
+	other, err := common.StrToMap(log.Other)
+	require.NoError(t, err)
+	return other
+}
+
 func countLogs(t *testing.T) int64 {
 	t.Helper()
 	var count int64
@@ -215,6 +222,11 @@ func TestRefundTaskQuota_Wallet(t *testing.T) {
 	assert.Equal(t, model.LogTypeRefund, log.Type)
 	assert.Equal(t, preConsumed, log.Quota)
 	assert.Equal(t, "test-model", log.ModelName)
+	other := getLogOther(t, log)
+	assert.Equal(t, BillingSourceWallet, other["billing_source"])
+	assert.Equal(t, float64(preConsumed), other["pre_consumed_quota"])
+	assert.Equal(t, float64(0), other["actual_quota"])
+	assert.NotEmpty(t, other["task_id"])
 }
 
 func TestRefundTaskQuota_Subscription(t *testing.T) {
@@ -244,6 +256,11 @@ func TestRefundTaskQuota_Subscription(t *testing.T) {
 	log := getLastLog(t)
 	require.NotNil(t, log)
 	assert.Equal(t, model.LogTypeRefund, log.Type)
+	other := getLogOther(t, log)
+	assert.Equal(t, BillingSourceSubscription, other["billing_source"])
+	assert.Equal(t, float64(subID), other["subscription_id"])
+	assert.Equal(t, float64(preConsumed), other["pre_consumed_quota"])
+	assert.Equal(t, float64(0), other["actual_quota"])
 }
 
 func TestRefundTaskQuota_ZeroQuota(t *testing.T) {
@@ -322,6 +339,10 @@ func TestRecalculate_PositiveDelta(t *testing.T) {
 	require.NotNil(t, log)
 	assert.Equal(t, model.LogTypeConsume, log.Type)
 	assert.Equal(t, actualQuota-preConsumed, log.Quota)
+	other := getLogOther(t, log)
+	assert.Equal(t, BillingSourceWallet, other["billing_source"])
+	assert.Equal(t, float64(preConsumed), other["pre_consumed_quota"])
+	assert.Equal(t, float64(actualQuota), other["actual_quota"])
 }
 
 func TestRecalculate_NegativeDelta(t *testing.T) {
@@ -355,6 +376,10 @@ func TestRecalculate_NegativeDelta(t *testing.T) {
 	require.NotNil(t, log)
 	assert.Equal(t, model.LogTypeRefund, log.Type)
 	assert.Equal(t, preConsumed-actualQuota, log.Quota)
+	other := getLogOther(t, log)
+	assert.Equal(t, BillingSourceWallet, other["billing_source"])
+	assert.Equal(t, float64(preConsumed), other["pre_consumed_quota"])
+	assert.Equal(t, float64(actualQuota), other["actual_quota"])
 }
 
 func TestRecalculate_ZeroDelta(t *testing.T) {

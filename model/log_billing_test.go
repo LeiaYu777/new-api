@@ -100,3 +100,26 @@ func TestGetBillingSummaryFiltersByUserAndChannel(t *testing.T) {
 		t.Fatalf("net quota = %d", summary.Items[0].NetQuota)
 	}
 }
+
+func TestGetBillingExportLogsSanitizesModelFilter(t *testing.T) {
+	db := setupLogBillingTestDB(t)
+	logs := []*Log{
+		{UserId: 1, Username: "alice", CreatedAt: 10, Type: LogTypeConsume, ModelName: "doubao-seedance-2-0", Quota: 1000, ChannelId: 45, Group: "vip"},
+		{UserId: 2, Username: "bob", CreatedAt: 20, Type: LogTypeConsume, ModelName: "other-model", Quota: 500, ChannelId: 46, Group: "default"},
+	}
+	if err := db.Create(&logs).Error; err != nil {
+		t.Fatalf("failed to seed logs: %v", err)
+	}
+
+	exported, err := GetBillingExportLogs(LogTypeUnknown, 0, 0, "doubao-seedance-2-0", "", 0, "", 0, "", "", 100)
+	if err != nil {
+		t.Fatalf("GetBillingExportLogs() error = %v", err)
+	}
+	if len(exported) != 1 || exported[0].ModelName != "doubao-seedance-2-0" {
+		t.Fatalf("unexpected exported logs: %+v", exported)
+	}
+
+	if _, err := GetBillingExportLogs(LogTypeUnknown, 0, 0, "%%%%", "", 0, "", 0, "", "", 100); err == nil {
+		t.Fatalf("expected invalid wildcard pattern error")
+	}
+}

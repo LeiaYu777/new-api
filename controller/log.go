@@ -72,6 +72,16 @@ func SearchUserLogs(c *gin.Context) {
 	})
 }
 
+func billingOtherValue(other map[string]interface{}, key string) string {
+	if other == nil {
+		return ""
+	}
+	if value, ok := other[key]; ok {
+		return fmt.Sprint(value)
+	}
+	return ""
+}
+
 func ExportBillingLogs(c *gin.Context) {
 	logType, _ := strconv.Atoi(c.Query("type"))
 	startTimestamp, _ := strconv.ParseInt(c.Query("start_timestamp"), 10, 64)
@@ -94,14 +104,25 @@ func ExportBillingLogs(c *gin.Context) {
 	c.Header("Content-Type", "text/csv; charset=utf-8")
 	c.Header("Content-Disposition", "attachment; filename=billing-logs.csv")
 	writer := csv.NewWriter(c.Writer)
-	_ = writer.Write([]string{"created_at", "user_id", "username", "model_name", "channel_id", "token_id", "log_type", "quota", "group", "request_id", "task_id"})
+	_ = writer.Write([]string{
+		"created_at",
+		"user_id",
+		"username",
+		"model_name",
+		"channel_id",
+		"token_id",
+		"log_type",
+		"quota",
+		"group",
+		"request_id",
+		"task_id",
+		"billing_source",
+		"subscription_id",
+		"pre_consumed_quota",
+		"actual_quota",
+	})
 	for _, log := range logs {
-		taskId := ""
-		if other, _ := common.StrToMap(log.Other); other != nil {
-			if v, ok := other["task_id"]; ok {
-				taskId = fmt.Sprint(v)
-			}
-		}
+		other, _ := common.StrToMap(log.Other)
 		_ = writer.Write([]string{
 			time.Unix(log.CreatedAt, 0).Format(time.RFC3339),
 			strconv.Itoa(log.UserId),
@@ -113,7 +134,11 @@ func ExportBillingLogs(c *gin.Context) {
 			strconv.Itoa(log.Quota),
 			log.Group,
 			log.RequestId,
-			taskId,
+			billingOtherValue(other, "task_id"),
+			billingOtherValue(other, "billing_source"),
+			billingOtherValue(other, "subscription_id"),
+			billingOtherValue(other, "pre_consumed_quota"),
+			billingOtherValue(other, "actual_quota"),
 		})
 	}
 	writer.Flush()

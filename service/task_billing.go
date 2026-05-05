@@ -115,9 +115,22 @@ func taskAdjustTokenQuota(ctx context.Context, task *model.Task, delta int) {
 // taskBillingOther 从 task 的 BillingContext 构建日志 Other 字段。
 func taskBillingOther(task *model.Task) map[string]interface{} {
 	other := make(map[string]interface{})
+	if task.PrivateData.BillingSource != "" {
+		other["billing_source"] = task.PrivateData.BillingSource
+	}
+	if task.PrivateData.SubscriptionId > 0 {
+		other["subscription_id"] = task.PrivateData.SubscriptionId
+	}
+	if task.PrivateData.TokenId > 0 {
+		other["token_id"] = task.PrivateData.TokenId
+	}
 	if bc := task.PrivateData.BillingContext; bc != nil {
 		other["model_price"] = bc.ModelPrice
+		other["model_ratio"] = bc.ModelRatio
 		other["group_ratio"] = bc.GroupRatio
+		if bc.PerCallBilling {
+			other["per_call_billing"] = true
+		}
 		if len(bc.OtherRatios) > 0 {
 			for k, v := range bc.OtherRatios {
 				other[k] = v
@@ -161,6 +174,8 @@ func RefundTaskQuota(ctx context.Context, task *model.Task, reason string) {
 	other := taskBillingOther(task)
 	other["task_id"] = task.TaskID
 	other["reason"] = reason
+	other["pre_consumed_quota"] = quota
+	other["actual_quota"] = 0
 	model.RecordTaskBillingLog(model.RecordTaskBillingLogParams{
 		UserId:    task.UserId,
 		LogType:   model.LogTypeRefund,

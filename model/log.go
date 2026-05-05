@@ -341,7 +341,11 @@ func GetBillingExportLogs(logType int, startTimestamp int64, endTimestamp int64,
 		tx = tx.Where("logs.created_at <= ?", endTimestamp)
 	}
 	if modelName != "" {
-		tx = tx.Where("logs.model_name like ?", modelName)
+		modelNamePattern, err := sanitizeLikePattern(modelName)
+		if err != nil {
+			return nil, err
+		}
+		tx = tx.Where("logs.model_name LIKE ? ESCAPE '!'", modelNamePattern)
 	}
 	if username != "" {
 		tx = tx.Where("logs.username = ?", username)
