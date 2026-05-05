@@ -25,83 +25,87 @@ import { codeInspectorPlugin } from 'code-inspector-plugin';
 const { vitePluginSemi } = pkg;
 
 // https://vitejs.dev/config/
-export default defineConfig({
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-    },
-  },
-  plugins: [
-    codeInspectorPlugin({
-      bundler: 'vite',
-    }),
-    {
-      name: 'treat-js-files-as-jsx',
-      async transform(code, id) {
-        if (!/src\/.*\.js$/.test(id)) {
-          return null;
-        }
+export default defineConfig(({ command }) => {
+  const devOnlyPlugins =
+    command === 'serve'
+      ? [
+          codeInspectorPlugin({
+            bundler: 'vite',
+          }),
+        ]
+      : [];
 
-        // Use the exposed transform from vite, instead of directly
-        // transforming with esbuild
-        return transformWithEsbuild(code, id, {
-          loader: 'jsx',
-          jsx: 'automatic',
-        });
+  return {
+    resolve: {
+      alias: {
+        '@': path.resolve(__dirname, './src'),
       },
     },
-    react(),
-    vitePluginSemi({
-      cssLayer: true,
-    }),
-  ],
-  optimizeDeps: {
-    force: true,
-    esbuildOptions: {
-      loader: {
-        '.js': 'jsx',
-        '.json': 'json',
+    plugins: [
+      ...devOnlyPlugins,
+      {
+        name: 'treat-js-files-as-jsx',
+        async transform(code, id) {
+          if (!/src\/.*\.js$/.test(id)) {
+            return null;
+          }
+
+          // Use the exposed transform from vite, instead of directly
+          // transforming with esbuild
+          return transformWithEsbuild(code, id, {
+            loader: 'jsx',
+            jsx: 'automatic',
+          });
+        },
       },
-    },
-  },
-  build: {
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          'react-core': ['react', 'react-dom', 'react-router-dom'],
-          'semi-ui': ['@douyinfe/semi-icons', '@douyinfe/semi-ui'],
-          tools: ['axios', 'history', 'marked'],
-          'react-components': [
-            'react-dropzone',
-            'react-fireworks',
-            'react-telegram-login',
-            'react-toastify',
-            'react-turnstile',
-          ],
-          i18n: [
-            'i18next',
-            'react-i18next',
-            'i18next-browser-languagedetector',
-          ],
+      react(),
+      vitePluginSemi({
+        cssLayer: true,
+      }),
+    ],
+    optimizeDeps: {
+      force: true,
+      esbuildOptions: {
+        loader: {
+          '.js': 'jsx',
+          '.json': 'json',
         },
       },
     },
-  },
-  server: {
-    host: '0.0.0.0',
-    proxy: {
-      '/api': {
-        target: 'http://localhost:3000',
-        changeOrigin: true,
-      },
-      '/mj': {
-        target: 'http://localhost:3000',
-        changeOrigin: true,
-      },
-      '/pg': {
-        target: 'http://localhost:3000',
-        changeOrigin: true,
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            'react-core': ['react', 'react-dom', 'react-router-dom'],
+            'semi-ui': ['@douyinfe/semi-icons', '@douyinfe/semi-ui'],
+            tools: ['axios', 'history', 'marked'],
+            'react-components': [
+              'react-dropzone',
+              'react-fireworks',
+              'react-telegram-login',
+              'react-toastify',
+              'react-turnstile',
+            ],
+          },
+        },
       },
     },
-  },
+    server: {
+      host: '0.0.0.0',
+      proxy: {
+        '/api': {
+          target: 'http://localhost:3000',
+          changeOrigin: true,
+        },
+        '/mj': {
+          target: 'http://localhost:3000',
+          changeOrigin: true,
+        },
+        '/pg': {
+          target: 'http://localhost:3000',
+          changeOrigin: true,
+        },
+      },
+    },
+  };
 });
