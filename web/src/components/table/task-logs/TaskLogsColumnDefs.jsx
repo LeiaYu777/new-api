@@ -18,7 +18,14 @@ For commercial licensing, please contact support@quantumnous.com
 */
 
 import React from 'react';
-import { Popover, Progress, Tag, Tooltip, Typography } from '@douyinfe/semi-ui';
+import {
+  Button,
+  Popover,
+  Progress,
+  Tag,
+  Tooltip,
+  Typography,
+} from '@douyinfe/semi-ui';
 import {
   Music,
   FileText,
@@ -362,6 +369,48 @@ const renderBillingPopover = (record, t) => {
   );
 };
 
+const isVideoTaskRecord = (record) => {
+  return (
+    record.action === TASK_ACTION_GENERATE ||
+    record.action === TASK_ACTION_TEXT_GENERATE ||
+    record.action === TASK_ACTION_FIRST_TAIL_GENERATE ||
+    record.action === TASK_ACTION_REFERENCE_GENERATE ||
+    record.action === TASK_ACTION_REMIX_GENERATE
+  );
+};
+
+const getResultUrl = (record) => {
+  const resultUrl = record?.result_url;
+  if (typeof resultUrl === 'string' && /^https?:\/\//.test(resultUrl)) {
+    return resultUrl;
+  }
+  return '';
+};
+
+const buildTaskDetailContent = (record) => {
+  const detail = {
+    task_id: record.task_id,
+    status: record.status,
+    platform: record.platform,
+    action: record.action,
+    user_id: record.user_id,
+    username: record.username,
+    channel_id: record.channel_id,
+    group: record.group,
+    submit_time: record.submit_time ? renderTimestamp(record.submit_time) : '',
+    start_time: record.start_time ? renderTimestamp(record.start_time) : '',
+    finish_time: record.finish_time ? renderTimestamp(record.finish_time) : '',
+    progress: record.progress,
+    result_url: record.result_url || '',
+    fail_reason: record.fail_reason || '',
+    quota: record.quota,
+    billing: record.billing || null,
+    properties: record.properties || null,
+    data: record.data || null,
+  };
+  return JSON.stringify(detail, null, 2);
+};
+
 export const getTaskLogsColumns = ({
   t,
   COLUMN_KEYS,
@@ -506,6 +555,35 @@ export const getTaskLogsColumns = ({
       },
     },
     {
+      key: COLUMN_KEYS.RESULT_URL,
+      title: t('结果链接'),
+      dataIndex: 'result_url',
+      render: (text, record) => {
+        const resultUrl = getResultUrl(record);
+        if (!resultUrl) {
+          return '-';
+        }
+        return (
+          <Space>
+            <Button
+              size='small'
+              type='tertiary'
+              onClick={() => copyText(resultUrl)}
+            >
+              {t('复制')}
+            </Button>
+            <Button
+              size='small'
+              type='tertiary'
+              onClick={() => window.open(resultUrl, '_blank', 'noopener')}
+            >
+              {t('打开')}
+            </Button>
+          </Space>
+        );
+      },
+    },
+    {
       key: COLUMN_KEYS.BILLING,
       title: t('计费'),
       dataIndex: 'billing',
@@ -564,42 +642,60 @@ export const getTaskLogsColumns = ({
         }
 
         // 视频预览：优先使用 result_url，兼容旧数据 fail_reason 中的 URL
-        const isVideoTask =
-          record.action === TASK_ACTION_GENERATE ||
-          record.action === TASK_ACTION_TEXT_GENERATE ||
-          record.action === TASK_ACTION_FIRST_TAIL_GENERATE ||
-          record.action === TASK_ACTION_REFERENCE_GENERATE ||
-          record.action === TASK_ACTION_REMIX_GENERATE;
+        const isVideoTask = isVideoTaskRecord(record);
         const isSuccess = record.status === 'SUCCESS';
-        const resultUrl = record.result_url;
-        const hasResultUrl =
-          typeof resultUrl === 'string' && /^https?:\/\//.test(resultUrl);
+        const resultUrl = getResultUrl(record);
+        const hasResultUrl = Boolean(resultUrl);
         if (isSuccess && isVideoTask && hasResultUrl) {
           return (
-            <a
-              href='#'
-              onClick={(e) => {
-                e.preventDefault();
-                openVideoModal(resultUrl);
-              }}
-            >
-              {t('点击预览视频')}
-            </a>
+            <Space vertical align='start' spacing={2}>
+              <Button
+                size='small'
+                type='tertiary'
+                onClick={() => openVideoModal(resultUrl)}
+              >
+                {t('预览视频')}
+              </Button>
+              <Button
+                size='small'
+                type='tertiary'
+                onClick={() => openContentModal(buildTaskDetailContent(record))}
+              >
+                {t('任务详情')}
+              </Button>
+            </Space>
           );
         }
         if (!text) {
-          return t('无');
+          return (
+            <Button
+              size='small'
+              type='tertiary'
+              onClick={() => openContentModal(buildTaskDetailContent(record))}
+            >
+              {t('任务详情')}
+            </Button>
+          );
         }
         return (
-          <Typography.Text
-            ellipsis={{ showTooltip: true }}
-            style={{ width: 100 }}
-            onClick={() => {
-              openContentModal(text);
-            }}
-          >
-            {text}
-          </Typography.Text>
+          <Space vertical align='start' spacing={2}>
+            <Typography.Text
+              ellipsis={{ showTooltip: true }}
+              style={{ width: 120 }}
+              onClick={() => {
+                openContentModal(text);
+              }}
+            >
+              {text}
+            </Typography.Text>
+            <Button
+              size='small'
+              type='tertiary'
+              onClick={() => openContentModal(buildTaskDetailContent(record))}
+            >
+              {t('任务详情')}
+            </Button>
+          </Space>
         );
       },
     },
