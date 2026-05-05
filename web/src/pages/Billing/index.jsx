@@ -171,6 +171,11 @@ const BillingPage = () => {
       if (logType > 0) {
         params.type = logType;
       }
+      if (logType === 1) {
+        delete params.model_name;
+        delete params.channel;
+        delete params.group;
+      }
       const res = await API.get('/api/billing/export', {
         params,
         responseType: 'blob',
@@ -401,7 +406,9 @@ const BillingPage = () => {
               ))}
             </Form.Select>
             <Text type='secondary' size='small'>
-              {t('默认筛选 Seedance 2.0 系列；清空模型名称可查看全部模型。')}
+              {t(
+                '默认筛选 Seedance 2.0 系列；导出充值时会自动忽略模型、渠道和分组筛选。',
+              )}
             </Text>
           </div>
           <div className='flex gap-2 justify-end'>

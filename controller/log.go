@@ -82,6 +82,18 @@ func billingOtherValue(other map[string]interface{}, key string) string {
 	return ""
 }
 
+func billingCSVCell(value string) string {
+	if value == "" {
+		return ""
+	}
+	switch value[0] {
+	case '=', '+', '-', '@':
+		return "'" + value
+	default:
+		return value
+	}
+}
+
 func ExportBillingLogs(c *gin.Context) {
 	logType, _ := strconv.Atoi(c.Query("type"))
 	startTimestamp, _ := strconv.ParseInt(c.Query("start_timestamp"), 10, 64)
@@ -116,6 +128,7 @@ func ExportBillingLogs(c *gin.Context) {
 		"group",
 		"request_id",
 		"task_id",
+		"content",
 		"billing_source",
 		"subscription_id",
 		"pre_consumed_quota",
@@ -135,10 +148,11 @@ func ExportBillingLogs(c *gin.Context) {
 			log.Group,
 			log.RequestId,
 			billingOtherValue(other, "task_id"),
-			billingOtherValue(other, "billing_source"),
-			billingOtherValue(other, "subscription_id"),
-			billingOtherValue(other, "pre_consumed_quota"),
-			billingOtherValue(other, "actual_quota"),
+			billingCSVCell(log.Content),
+			billingCSVCell(billingOtherValue(other, "billing_source")),
+			billingCSVCell(billingOtherValue(other, "subscription_id")),
+			billingCSVCell(billingOtherValue(other, "pre_consumed_quota")),
+			billingCSVCell(billingOtherValue(other, "actual_quota")),
 		})
 	}
 	writer.Flush()

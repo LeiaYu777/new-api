@@ -114,6 +114,7 @@ GENERATE_AUDIO=false \
 3. 净扣费 = 消费扣费 - 退款返还。
 4. CSV 导出包含 `billing_source=wallet`。
 5. CSV 导出包含 `task_id`、`pre_consumed_quota`、`actual_quota`。
+6. 如导出类型选择“充值”，CSV 应包含 `content`，用于核对充值、补单或兑换码说明。
 
 ## 4. 订阅扣费验收
 

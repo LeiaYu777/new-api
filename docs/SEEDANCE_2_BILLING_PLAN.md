@@ -229,10 +229,10 @@ GET /api/billing/summary?user_id=&model_name=&start_timestamp=&end_timestamp=
 返回 CSV 字段：
 
 ```text
-created_at,user_id,username,model_name,channel_id,token_id,log_type,quota,group,request_id,task_id,billing_source,subscription_id,pre_consumed_quota,actual_quota
+created_at,user_id,username,model_name,channel_id,token_id,log_type,quota,group,request_id,task_id,content,billing_source,subscription_id,pre_consumed_quota,actual_quota
 ```
 
-其中 `billing_source` 用于区分钱包扣费和订阅额度扣费，`pre_consumed_quota` / `actual_quota` 用于核对任务提交预扣与任务完成后的差额结算。
+其中 `content` 用于保留充值、补单、兑换码等历史文本说明；`billing_source` 用于区分钱包扣费和订阅额度扣费；`pre_consumed_quota` / `actual_quota` 用于核对任务提交预扣与任务完成后的差额结算。
 
 ### 5.6 充值与订阅配置
 
