@@ -31,7 +31,7 @@
 | 任务 | 状态 | 说明 | 建议处理 |
 | --- | --- | --- | --- |
 | 远程图片和视频 URI 安全策略 | 基础完成，生产配置待完成 | 代码已接入系统 Fetch/SSRF 策略，会拒绝私有 IP、危险端口、非 HTTP(S) 协议和带账号密码的 URL。生产如果允许客户传外部 URL，仍建议限制到客户素材域名或对象存储域名。 | 配置 URL allowlist、禁止内网 IP、使用对象存储中转或安全代理拉取，并在预发验证非法 URL 会被 400 拦截。 |
-| 补齐官方多模态字段 | 部分完成 | 当前支持 prompt、image/images、duration、resolution、ratio、seed、audio、watermark 等通用字段。参考视频、首帧、尾帧、虚拟人像 URI 等字段仍需按官方文档和联调结果补齐。 | 以真实请求样例为准增加字段映射、校验和测试。 |
+| 补齐官方多模态字段 | 基础完成，官方细节待联调 | 当前支持 prompt、image/images、reference_image_url(s)、first_frame_url、last_frame_url、reference_video_url(s)、duration、resolution、ratio、seed、audio、watermark 等字段。虚拟人像 URI、音频参考和官方最终 `content.role` 取值仍需按客户开通能力联调。 | 以真实请求样例为准校正字段映射、校验和测试。 |
 | 前端生产构建排查 | 已完成，仍有体积优化空间 | 已给 Vite 构建增加 Node heap 上限，并将 code-inspector 限制在 dev server；`npm run build` 已通过。构建仍提示部分 chunk 偏大。 | 后续可对 Mermaid、图表库、Semi UI 重页面继续做动态 import。 |
 | 全量前端 lint 收敛 | 已完成 | 已增加 `.prettierignore` 排除 `dist` 等生成物，并格式化历史源码文件；`npm run lint` 已通过。 | CI 可直接执行 `cd web && npm run lint`。 |
 | 生产监控与告警 | 未完成 | 需要监控任务失败率、超时率、退款量、余额不足、上游 4xx/5xx、worker 延迟。 | 增加 Grafana/Prometheus 告警或复用现有监控模块。 |
@@ -56,7 +56,7 @@
 3. 用钱包模式执行 smoke test，保存账单页和 CSV 证据。
 4. 用订阅模式执行 smoke test，验证订阅额度扣费与退款。
 5. 执行余额不足、非法参数、任务失败或超时场景。
-6. 根据真实返回补齐缺失字段映射，并配置生产素材域名 allowlist 或对象存储中转。
+6. 根据真实返回校正多模态字段映射，并配置生产素材域名 allowlist 或对象存储中转。
 7. 准备 AGPL 源码交付包或商业授权凭证。
 
 ## 6. 相关文档

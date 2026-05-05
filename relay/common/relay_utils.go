@@ -86,16 +86,20 @@ func validateMultipartTaskRequest(c *gin.Context, info *RelayInfo, action string
 
 	formData := c.Request.PostForm
 	req = TaskSubmitReq{
-		Prompt:      formData.Get("prompt"),
-		Model:       formData.Get("model"),
-		Mode:        formData.Get("mode"),
-		Image:       formData.Get("image"),
-		Size:        formData.Get("size"),
-		Resolution:  formData.Get("resolution"),
-		Ratio:       formData.Get("ratio"),
-		ServiceTier: formData.Get("service_tier"),
-		CallbackURL: formData.Get("callback_url"),
-		Metadata:    make(map[string]interface{}),
+		Prompt:            formData.Get("prompt"),
+		Model:             formData.Get("model"),
+		Mode:              formData.Get("mode"),
+		Image:             formData.Get("image"),
+		ReferenceImageURL: formData.Get("reference_image_url"),
+		FirstFrameURL:     formData.Get("first_frame_url"),
+		LastFrameURL:      formData.Get("last_frame_url"),
+		ReferenceVideoURL: formData.Get("reference_video_url"),
+		Size:              formData.Get("size"),
+		Resolution:        formData.Get("resolution"),
+		Ratio:             formData.Get("ratio"),
+		ServiceTier:       formData.Get("service_tier"),
+		CallbackURL:       formData.Get("callback_url"),
+		Metadata:          make(map[string]interface{}),
 	}
 
 	if durationStr := formData.Get("seconds"); durationStr != "" {
@@ -141,6 +145,12 @@ func validateMultipartTaskRequest(c *gin.Context, info *RelayInfo, action string
 
 	if images := formData["images"]; len(images) > 0 {
 		req.Images = images
+	}
+	if referenceImageURLs := formData["reference_image_urls"]; len(referenceImageURLs) > 0 {
+		req.ReferenceImageURLs = referenceImageURLs
+	}
+	if referenceVideoURLs := formData["reference_video_urls"]; len(referenceVideoURLs) > 0 {
+		req.ReferenceVideoURLs = referenceVideoURLs
 	}
 
 	for key, values := range formData {
@@ -227,6 +237,12 @@ func isKnownTaskField(field string) bool {
 		"mode":                    true,
 		"image":                   true,
 		"images":                  true,
+		"reference_image_url":     true,
+		"reference_image_urls":    true,
+		"first_frame_url":         true,
+		"last_frame_url":          true,
+		"reference_video_url":     true,
+		"reference_video_urls":    true,
 		"size":                    true,
 		"duration":                true,
 		"seconds":                 true,

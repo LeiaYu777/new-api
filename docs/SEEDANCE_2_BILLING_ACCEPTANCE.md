@@ -22,6 +22,7 @@ SEEDANCE_BILLING_STRICT_USAGE=false
 SEEDANCE_DEFAULT_DURATION=5
 SEEDANCE_MAX_DURATION=60
 SEEDANCE_MAX_IMAGES=8
+SEEDANCE_MAX_REFERENCE_VIDEOS=3
 ```
 
 建议先用固定价格上线，再根据上游 usage 稳定性决定是否按 token 差额结算。
@@ -100,6 +101,15 @@ GENERATE_AUDIO=false \
 
 ```bash
 IMAGE_URL=https://cdn.example.com/reference.png ./scripts/seedance-billing-smoke.sh
+```
+
+如需验收首尾帧或参考视频，可追加：
+
+```bash
+FIRST_FRAME_URL=https://cdn.example.com/first.png \
+LAST_FRAME_URL=https://cdn.example.com/last.png \
+REFERENCE_VIDEO_URL=https://cdn.example.com/reference.mp4 \
+./scripts/seedance-billing-smoke.sh
 ```
 
 预期结果：

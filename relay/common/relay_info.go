@@ -669,6 +669,12 @@ type TaskSubmitReq struct {
 	Mode                  string                 `json:"mode,omitempty"`
 	Image                 string                 `json:"image,omitempty"`
 	Images                []string               `json:"images,omitempty"`
+	ReferenceImageURL     string                 `json:"reference_image_url,omitempty"`
+	ReferenceImageURLs    []string               `json:"reference_image_urls,omitempty"`
+	FirstFrameURL         string                 `json:"first_frame_url,omitempty"`
+	LastFrameURL          string                 `json:"last_frame_url,omitempty"`
+	ReferenceVideoURL     string                 `json:"reference_video_url,omitempty"`
+	ReferenceVideoURLs    []string               `json:"reference_video_urls,omitempty"`
 	Size                  string                 `json:"size,omitempty"`
 	Duration              int                    `json:"duration,omitempty"`
 	Seconds               string                 `json:"seconds,omitempty"`

@@ -115,11 +115,14 @@ relay/common/relay_utils.go
 7. `generate_audio`
 8. `watermark`
 9. `camera_fixed`
+10. `reference_image_url` / `reference_image_urls`
+11. `first_frame_url` / `last_frame_url`
+12. `reference_video_url` / `reference_video_urls`
 
 需要补齐：
 
-1. 官方 Seedance 2.0 支持的多模态输入字段。
-2. 参考视频、首帧、尾帧、虚拟人像 URI 等字段映射。
+1. 官方 Seedance 2.0 真实请求样例的字段名和 `content.role` 取值仍需联调确认。
+2. 虚拟人像 URI、音频参考等更细字段仍需以官方文档和客户开通能力为准。
 3. 参数白名单与取值校验，避免客户提交不可计费或不可控参数。
 4. 远程图片、视频和 callback URL 统一走系统 Fetch/SSRF 策略，拒绝私有 IP、危险端口、非 HTTP(S) 协议和带账号密码的 URL。
 
@@ -343,6 +346,17 @@ curl -sS https://your-domain/v1/video/generations \
 API_KEY=sk-xxx \
 BASE_URL=https://your-domain \
 IMAGE_URL=https://cdn.example.com/reference.png \
+./scripts/seedance-billing-smoke.sh
+```
+
+首尾帧和参考视频 smoke test：
+
+```bash
+API_KEY=sk-xxx \
+BASE_URL=https://your-domain \
+FIRST_FRAME_URL=https://cdn.example.com/first.png \
+LAST_FRAME_URL=https://cdn.example.com/last.png \
+REFERENCE_VIDEO_URL=https://cdn.example.com/reference.mp4 \
 ./scripts/seedance-billing-smoke.sh
 ```
 

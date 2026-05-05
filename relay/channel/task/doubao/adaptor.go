@@ -269,22 +269,104 @@ func (a *TaskAdaptor) convertToRequestPayload(req *relaycommon.TaskSubmitReq) (*
 	// Add images if present
 	if req.HasImage() {
 		for _, imgURL := range req.Images {
-			imgURL = strings.TrimSpace(imgURL)
-			r.Content = append(r.Content, ContentItem{
-				Type: "image_url",
-				ImageURL: &ImageURL{
-					URL: imgURL,
-				},
-			})
+			appendSeedanceImageContent(&r, imgURL, "")
 		}
+	}
+	appendSeedanceImageContent(&r, req.ReferenceImageURL, "reference_image")
+	for _, imgURL := range req.ReferenceImageURLs {
+		appendSeedanceImageContent(&r, imgURL, "reference_image")
+	}
+	appendSeedanceImageContent(&r, req.FirstFrameURL, "first_frame")
+	appendSeedanceImageContent(&r, req.LastFrameURL, "last_frame")
+	appendSeedanceVideoContent(&r, req.ReferenceVideoURL, "reference_video")
+	for _, videoURL := range req.ReferenceVideoURLs {
+		appendSeedanceVideoContent(&r, videoURL, "reference_video")
 	}
 
 	metadata := req.Metadata
 	if err := taskcommon.UnmarshalMetadata(metadata, &r); err != nil {
 		return nil, errors.Wrap(err, "unmarshal metadata failed")
 	}
+	appendSeedanceMetadataReferences(&r, metadata)
 
 	return &r, nil
+}
+
+func appendSeedanceImageContent(payload *requestPayload, imageURL string, role string) {
+	imageURL = strings.TrimSpace(imageURL)
+	if imageURL == "" {
+		return
+	}
+	payload.Content = append(payload.Content, ContentItem{
+		Type: "image_url",
+		ImageURL: &ImageURL{
+			URL: imageURL,
+		},
+		Role: role,
+	})
+}
+
+func appendSeedanceVideoContent(payload *requestPayload, videoURL string, role string) {
+	videoURL = strings.TrimSpace(videoURL)
+	if videoURL == "" {
+		return
+	}
+	payload.Content = append(payload.Content, ContentItem{
+		Type: "video",
+		Video: &VideoReference{
+			URL: videoURL,
+		},
+		Role: role,
+	})
+}
+
+func appendSeedanceMetadataReferences(payload *requestPayload, metadata map[string]interface{}) {
+	if metadata == nil {
+		return
+	}
+	appendSeedanceImageContent(payload, seedanceMetadataString(metadata, "reference_image_url"), "reference_image")
+	for _, imageURL := range seedanceMetadataStringSlice(metadata, "reference_image_urls") {
+		appendSeedanceImageContent(payload, imageURL, "reference_image")
+	}
+	appendSeedanceImageContent(payload, seedanceMetadataString(metadata, "first_frame_url"), "first_frame")
+	appendSeedanceImageContent(payload, seedanceMetadataString(metadata, "last_frame_url"), "last_frame")
+	appendSeedanceVideoContent(payload, seedanceMetadataString(metadata, "reference_video_url"), "reference_video")
+	for _, videoURL := range seedanceMetadataStringSlice(metadata, "reference_video_urls") {
+		appendSeedanceVideoContent(payload, videoURL, "reference_video")
+	}
+}
+
+func seedanceMetadataString(metadata map[string]interface{}, key string) string {
+	if value, ok := metadata[key].(string); ok {
+		return value
+	}
+	return ""
+}
+
+func seedanceMetadataStringSlice(metadata map[string]interface{}, key string) []string {
+	value, ok := metadata[key]
+	if !ok {
+		return nil
+	}
+	switch typed := value.(type) {
+	case []string:
+		return typed
+	case []interface{}:
+		result := make([]string, 0, len(typed))
+		for _, item := range typed {
+			if raw, ok := item.(string); ok {
+				result = append(result, raw)
+			}
+		}
+		return result
+	case string:
+		if typed == "" {
+			return nil
+		}
+		return []string{typed}
+	default:
+		return nil
+	}
 }
 
 func (a *TaskAdaptor) EstimateBilling(c *gin.Context, info *relaycommon.RelayInfo) map[string]float64 {
@@ -390,8 +472,17 @@ func (a *TaskAdaptor) validateSeedance2Request(req *relaycommon.TaskSubmitReq) *
 	if maxImages <= 0 {
 		maxImages = 8
 	}
-	if len(req.Images) > maxImages {
-		return service.TaskErrorWrapperLocal(fmt.Errorf("images cannot exceed %d", maxImages), "invalid_images", http.StatusBadRequest)
+	imageReferenceCount := countSeedanceContentItems(body, "image_url")
+	if imageReferenceCount > maxImages {
+		return service.TaskErrorWrapperLocal(fmt.Errorf("image references cannot exceed %d", maxImages), "invalid_images", http.StatusBadRequest)
+	}
+	maxReferenceVideos := common.GetEnvOrDefault("SEEDANCE_MAX_REFERENCE_VIDEOS", 3)
+	if maxReferenceVideos <= 0 {
+		maxReferenceVideos = 3
+	}
+	videoReferenceCount := countSeedanceContentItems(body, "video")
+	if videoReferenceCount > maxReferenceVideos {
+		return service.TaskErrorWrapperLocal(fmt.Errorf("reference videos cannot exceed %d", maxReferenceVideos), "invalid_videos", http.StatusBadRequest)
 	}
 	if body.Resolution != "" {
 		if _, ok := seedanceResolutionRatio(body.Resolution); !ok {
@@ -457,6 +548,16 @@ func validateSeedance2URL(rawURL string) error {
 	return nil
 }
 
+func countSeedanceContentItems(body *requestPayload, itemType string) int {
+	count := 0
+	for _, item := range body.Content {
+		if item.Type == itemType {
+			count++
+		}
+	}
+	return count
+}
+
 var seedanceAllowedMetadata = map[string]bool{
 	"callback_url":            true,
 	"return_last_frame":       true,
@@ -471,6 +572,12 @@ var seedanceAllowedMetadata = map[string]bool{
 	"seed":                    true,
 	"camera_fixed":            true,
 	"watermark":               true,
+	"reference_image_url":     true,
+	"reference_image_urls":    true,
+	"first_frame_url":         true,
+	"last_frame_url":          true,
+	"reference_video_url":     true,
+	"reference_video_urls":    true,
 }
 
 var seedanceAllowedRatios = map[string]bool{

@@ -16,6 +16,10 @@ set -euo pipefail
 #   RATIO=16:9
 #   GENERATE_AUDIO=false
 #   IMAGE_URL=https://cdn.example.com/reference.png
+#   REFERENCE_IMAGE_URL=https://cdn.example.com/style.png
+#   FIRST_FRAME_URL=https://cdn.example.com/first.png
+#   LAST_FRAME_URL=https://cdn.example.com/last.png
+#   REFERENCE_VIDEO_URL=https://cdn.example.com/reference.mp4
 #   CALLBACK_URL=https://app.example.com/seedance/callback
 #   EXPECT_SUBMIT_FAILURE=false
 #   POLL_INTERVAL=5
@@ -29,6 +33,10 @@ RESOLUTION="${RESOLUTION:-720p}"
 RATIO="${RATIO:-16:9}"
 GENERATE_AUDIO="${GENERATE_AUDIO:-false}"
 IMAGE_URL="${IMAGE_URL:-}"
+REFERENCE_IMAGE_URL="${REFERENCE_IMAGE_URL:-}"
+FIRST_FRAME_URL="${FIRST_FRAME_URL:-}"
+LAST_FRAME_URL="${LAST_FRAME_URL:-}"
+REFERENCE_VIDEO_URL="${REFERENCE_VIDEO_URL:-}"
 CALLBACK_URL="${CALLBACK_URL:-}"
 EXPECT_SUBMIT_FAILURE="${EXPECT_SUBMIT_FAILURE:-false}"
 POLL_INTERVAL="${POLL_INTERVAL:-5}"
@@ -51,6 +59,10 @@ submit_payload="$(
     --arg resolution "$RESOLUTION" \
     --arg ratio "$RATIO" \
     --arg image_url "$IMAGE_URL" \
+    --arg reference_image_url "$REFERENCE_IMAGE_URL" \
+    --arg first_frame_url "$FIRST_FRAME_URL" \
+    --arg last_frame_url "$LAST_FRAME_URL" \
+    --arg reference_video_url "$REFERENCE_VIDEO_URL" \
     --arg callback_url "$CALLBACK_URL" \
     --argjson duration "$DURATION" \
     --argjson generate_audio "$GENERATE_AUDIO" \
@@ -63,6 +75,10 @@ submit_payload="$(
       generate_audio: $generate_audio
     }
     | if $image_url != "" then . + {images: [$image_url]} else . end
+    | if $reference_image_url != "" then . + {reference_image_url: $reference_image_url} else . end
+    | if $first_frame_url != "" then . + {first_frame_url: $first_frame_url} else . end
+    | if $last_frame_url != "" then . + {last_frame_url: $last_frame_url} else . end
+    | if $reference_video_url != "" then . + {reference_video_url: $reference_video_url} else . end
     | if $callback_url != "" then . + {callback_url: $callback_url} else . end'
 )"
 

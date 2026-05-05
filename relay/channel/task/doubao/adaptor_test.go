@@ -62,6 +62,52 @@ func TestValidateSeedance2RequestRejectsUnknownMetadata(t *testing.T) {
 	}
 }
 
+func TestConvertToRequestPayloadUsesSeedanceReferenceContent(t *testing.T) {
+	adaptor := &TaskAdaptor{}
+
+	payload, err := adaptor.convertToRequestPayload(&relaycommon.TaskSubmitReq{
+		Model:              "doubao-seedance-2-0",
+		Prompt:             "make a short video",
+		Images:             []string{" https://cdn.example.com/base.png "},
+		ReferenceImageURL:  "https://cdn.example.com/ref-1.png",
+		ReferenceImageURLs: []string{"https://cdn.example.com/ref-2.png"},
+		FirstFrameURL:      "https://cdn.example.com/first.png",
+		LastFrameURL:       "https://cdn.example.com/last.png",
+		ReferenceVideoURL:  "https://cdn.example.com/ref-1.mp4",
+		ReferenceVideoURLs: []string{"https://cdn.example.com/ref-2.mp4"},
+	})
+	if err != nil {
+		t.Fatalf("convertToRequestPayload() error = %v", err)
+	}
+
+	assertContentItem(t, payload.Content, "image_url", "", "https://cdn.example.com/base.png")
+	assertContentItem(t, payload.Content, "image_url", "reference_image", "https://cdn.example.com/ref-1.png")
+	assertContentItem(t, payload.Content, "image_url", "reference_image", "https://cdn.example.com/ref-2.png")
+	assertContentItem(t, payload.Content, "image_url", "first_frame", "https://cdn.example.com/first.png")
+	assertContentItem(t, payload.Content, "image_url", "last_frame", "https://cdn.example.com/last.png")
+	assertContentItem(t, payload.Content, "video", "reference_video", "https://cdn.example.com/ref-1.mp4")
+	assertContentItem(t, payload.Content, "video", "reference_video", "https://cdn.example.com/ref-2.mp4")
+}
+
+func TestConvertToRequestPayloadUsesSeedanceMetadataReferences(t *testing.T) {
+	adaptor := &TaskAdaptor{}
+
+	payload, err := adaptor.convertToRequestPayload(&relaycommon.TaskSubmitReq{
+		Model:  "doubao-seedance-2-0",
+		Prompt: "make a short video",
+		Metadata: map[string]interface{}{
+			"first_frame_url":      "https://cdn.example.com/first.png",
+			"reference_video_urls": []interface{}{"https://cdn.example.com/ref.mp4"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("convertToRequestPayload() error = %v", err)
+	}
+
+	assertContentItem(t, payload.Content, "image_url", "first_frame", "https://cdn.example.com/first.png")
+	assertContentItem(t, payload.Content, "video", "reference_video", "https://cdn.example.com/ref.mp4")
+}
+
 func TestValidateSeedance2RequestRejectsPrivateImageURL(t *testing.T) {
 	withSeedanceFetchSetting(t)
 	adaptor := &TaskAdaptor{}
@@ -92,6 +138,45 @@ func TestValidateSeedance2RequestRejectsUnsafeCallbackURL(t *testing.T) {
 		t.Fatalf("validateSeedance2Request() expected error")
 	}
 	if err.Code != "invalid_callback_url" {
+		t.Fatalf("error code = %q", err.Code)
+	}
+}
+
+func TestValidateSeedance2RequestRejectsPrivateReferenceVideoURL(t *testing.T) {
+	withSeedanceFetchSetting(t)
+	adaptor := &TaskAdaptor{}
+
+	err := adaptor.validateSeedance2Request(&relaycommon.TaskSubmitReq{
+		Model:             "doubao-seedance-2-0",
+		Prompt:            "make a short video",
+		ReferenceVideoURL: "http://127.0.0.1/video.mp4",
+	})
+	if err == nil {
+		t.Fatalf("validateSeedance2Request() expected error")
+	}
+	if err.Code != "invalid_video_url" {
+		t.Fatalf("error code = %q", err.Code)
+	}
+}
+
+func TestValidateSeedance2RequestRejectsTooManyReferenceVideos(t *testing.T) {
+	withSeedanceFetchSetting(t)
+	adaptor := &TaskAdaptor{}
+
+	err := adaptor.validateSeedance2Request(&relaycommon.TaskSubmitReq{
+		Model:             "doubao-seedance-2-0",
+		Prompt:            "make a short video",
+		ReferenceVideoURL: "https://cdn.example.com/ref-0.mp4",
+		ReferenceVideoURLs: []string{
+			"https://cdn.example.com/ref-1.mp4",
+			"https://cdn.example.com/ref-2.mp4",
+			"https://cdn.example.com/ref-3.mp4",
+		},
+	})
+	if err == nil {
+		t.Fatalf("validateSeedance2Request() expected error")
+	}
+	if err.Code != "invalid_videos" {
 		t.Fatalf("error code = %q", err.Code)
 	}
 }
@@ -152,4 +237,26 @@ func withSeedanceFetchSetting(t *testing.T) {
 	fetchSetting.IpList = nil
 	fetchSetting.AllowedPorts = []string{"80", "443"}
 	fetchSetting.ApplyIPFilterForDomain = false
+}
+
+func assertContentItem(t *testing.T, content []ContentItem, itemType string, role string, expectedURL string) {
+	t.Helper()
+
+	for _, item := range content {
+		if item.Type != itemType || item.Role != role {
+			continue
+		}
+		switch itemType {
+		case "image_url":
+			if item.ImageURL != nil && item.ImageURL.URL == expectedURL {
+				return
+			}
+		case "video":
+			if item.Video != nil && item.Video.URL == expectedURL {
+				return
+			}
+		}
+	}
+
+	t.Fatalf("content item type=%q role=%q url=%q not found in %#v", itemType, role, expectedURL, content)
 }
