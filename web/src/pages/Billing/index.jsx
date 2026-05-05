@@ -1,0 +1,494 @@
+/*
+Copyright (C) 2025 QuantumNous
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as
+published by the Free Software Foundation, either version 3 of the
+License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+For commercial licensing, please contact support@quantumnous.com
+*/
+
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Button, Card, Empty, Form, Tag, Typography } from '@douyinfe/semi-ui';
+import { IconDownload, IconRefresh, IconSearch } from '@douyinfe/semi-icons';
+import { useTranslation } from 'react-i18next';
+import CardPro from '../../components/common/ui/CardPro';
+import CardTable from '../../components/common/ui/CardTable';
+import {
+  API,
+  getTodayStartTimestamp,
+  renderQuota,
+  showError,
+  showSuccess,
+  timestamp2string,
+} from '../../helpers';
+import { DATE_RANGE_PRESETS } from '../../constants/console.constants';
+
+const { Text, Title } = Typography;
+
+const DEFAULT_MODEL_FILTER = 'doubao-seedance-2-0%';
+const DEFAULT_LIMIT = 100;
+
+const LOG_TYPE_OPTIONS = [
+  { value: 0, label: '全部流水' },
+  { value: 1, label: '充值' },
+  { value: 2, label: '消费' },
+  { value: 6, label: '退款' },
+];
+
+const initialDateRange = () => {
+  const now = Math.floor(Date.now() / 1000);
+  return [
+    timestamp2string(getTodayStartTimestamp()),
+    timestamp2string(now + 3600),
+  ];
+};
+
+const toUnixSeconds = (value) => {
+  if (!value) return 0;
+  if (value instanceof Date) return Math.floor(value.getTime() / 1000);
+  const parsed = Date.parse(value);
+  if (Number.isNaN(parsed)) return 0;
+  return Math.floor(parsed / 1000);
+};
+
+const trimValue = (value) => {
+  if (value === undefined || value === null) return '';
+  return String(value).trim();
+};
+
+const buildParams = (values = {}) => {
+  const dateRange = Array.isArray(values.dateRange)
+    ? values.dateRange
+    : initialDateRange();
+  const params = {
+    start_timestamp: toUnixSeconds(dateRange[0]),
+    end_timestamp: toUnixSeconds(dateRange[1]),
+    model_name: trimValue(values.model_name),
+    username: trimValue(values.username),
+    user_id: Number(values.user_id || 0),
+    channel: Number(values.channel || 0),
+    group: trimValue(values.group),
+    limit: Number(values.limit || DEFAULT_LIMIT),
+  };
+
+  return Object.fromEntries(
+    Object.entries(params).filter(([, value]) => {
+      if (typeof value === 'number') return value > 0;
+      return value !== '';
+    }),
+  );
+};
+
+const formatCount = (value) =>
+  Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
+
+const BillingPage = () => {
+  const { t } = useTranslation();
+  const [formApi, setFormApi] = useState(null);
+  const [summary, setSummary] = useState({
+    items: [],
+    consume_quota: 0,
+    refund_quota: 0,
+    net_quota: 0,
+    request_count: 0,
+    refund_count: 0,
+    total_tokens: 0,
+  });
+  const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
+  const formInitValues = useMemo(
+    () => ({
+      dateRange: initialDateRange(),
+      model_name: DEFAULT_MODEL_FILTER,
+      limit: DEFAULT_LIMIT,
+      logType: 0,
+    }),
+    [],
+  );
+
+  const getCurrentValues = useCallback(() => {
+    if (!formApi) return formInitValues;
+    return { ...formInitValues, ...formApi.getValues() };
+  }, [formApi, formInitValues]);
+
+  const loadSummary = useCallback(
+    async (values) => {
+      setLoading(true);
+      try {
+        const params = buildParams(values || getCurrentValues());
+        const res = await API.get('/api/billing/summary', { params });
+        if (res.data.success) {
+          const data = res.data.data || {};
+          setSummary({
+            items: Array.isArray(data.items) ? data.items : [],
+            consume_quota: data.consume_quota || 0,
+            refund_quota: data.refund_quota || 0,
+            net_quota: data.net_quota || 0,
+            request_count: data.request_count || 0,
+            refund_count: data.refund_count || 0,
+            total_tokens: data.total_tokens || 0,
+          });
+        } else {
+          showError(res.data.message || t('账单汇总查询失败'));
+        }
+      } catch (error) {
+        showError(error);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [getCurrentValues, t],
+  );
+
+  useEffect(() => {
+    if (formApi) {
+      loadSummary(formInitValues);
+    }
+  }, [formApi, formInitValues, loadSummary]);
+
+  const resetFilters = () => {
+    formApi?.reset();
+    setTimeout(() => loadSummary(formInitValues), 0);
+  };
+
+  const downloadBillingCsv = async () => {
+    setExporting(true);
+    try {
+      const values = getCurrentValues();
+      const params = buildParams(values);
+      const logType = Number(values.logType || 0);
+      if (logType > 0) {
+        params.type = logType;
+      }
+      const res = await API.get('/api/billing/export', {
+        params,
+        responseType: 'blob',
+        disableDuplicate: true,
+      });
+      const blob = new Blob([res.data], {
+        type: 'text/csv;charset=utf-8',
+      });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `billing-${Date.now()}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      showSuccess(t('账单流水已导出'));
+    } catch (error) {
+      showError(error);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const stats = [
+    {
+      title: t('消费扣费'),
+      value: renderQuota(summary.consume_quota, 6),
+      desc: t('消费日志累计扣费'),
+    },
+    {
+      title: t('退款返还'),
+      value: renderQuota(summary.refund_quota, 6),
+      desc: t('失败或回滚任务返还额度'),
+    },
+    {
+      title: t('净扣费'),
+      value: renderQuota(summary.net_quota, 6),
+      desc: t('消费扣费减去退款返还'),
+    },
+    {
+      title: t('调用次数'),
+      value: formatCount(summary.request_count),
+      desc: t('消费流水条数'),
+    },
+    {
+      title: t('退款次数'),
+      value: formatCount(summary.refund_count),
+      desc: t('退款流水条数'),
+    },
+    {
+      title: t('Token 合计'),
+      value: formatCount(summary.total_tokens),
+      desc: t('同步模型按 token 统计，视频任务可能为 0'),
+    },
+  ];
+
+  const columns = [
+    {
+      title: t('用户 ID'),
+      dataIndex: 'user_id',
+      key: 'user_id',
+      width: 100,
+      render: (value) => <Text copyable>{value}</Text>,
+    },
+    {
+      title: t('用户名'),
+      dataIndex: 'username',
+      key: 'username',
+      width: 160,
+      render: (value) => value || '-',
+    },
+    {
+      title: t('模型'),
+      dataIndex: 'model_name',
+      key: 'model_name',
+      width: 220,
+      render: (value) => <Text copyable>{value || '-'}</Text>,
+    },
+    {
+      title: t('渠道'),
+      dataIndex: 'channel_id',
+      key: 'channel_id',
+      width: 90,
+      render: (value) => value || '-',
+    },
+    {
+      title: t('分组'),
+      dataIndex: 'group',
+      key: 'group',
+      width: 120,
+      render: (value) => (value ? <Tag>{value}</Tag> : '-'),
+    },
+    {
+      title: t('消费扣费'),
+      dataIndex: 'consume_quota',
+      key: 'consume_quota',
+      width: 140,
+      render: (value) => renderQuota(value, 6),
+    },
+    {
+      title: t('退款返还'),
+      dataIndex: 'refund_quota',
+      key: 'refund_quota',
+      width: 140,
+      render: (value) => renderQuota(value, 6),
+    },
+    {
+      title: t('净扣费'),
+      dataIndex: 'net_quota',
+      key: 'net_quota',
+      width: 140,
+      render: (value) => <Text strong>{renderQuota(value, 6)}</Text>,
+    },
+    {
+      title: t('调用次数'),
+      dataIndex: 'request_count',
+      key: 'request_count',
+      width: 110,
+      render: (value) => formatCount(value),
+    },
+    {
+      title: t('退款次数'),
+      dataIndex: 'refund_count',
+      key: 'refund_count',
+      width: 110,
+      render: (value) => formatCount(value),
+    },
+    {
+      title: t('Token 合计'),
+      dataIndex: 'total_tokens',
+      key: 'total_tokens',
+      width: 130,
+      render: (value) => formatCount(value),
+    },
+  ];
+
+  const searchArea = (
+    <Form
+      initValues={formInitValues}
+      getFormApi={setFormApi}
+      onSubmit={loadSummary}
+      allowEmpty
+      autoComplete='off'
+      layout='vertical'
+      trigger='change'
+    >
+      <div className='flex flex-col gap-2'>
+        <div className='grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-2'>
+          <div className='col-span-1 xl:col-span-2'>
+            <Form.DatePicker
+              field='dateRange'
+              className='w-full'
+              type='dateTimeRange'
+              placeholder={[t('开始时间'), t('结束时间')]}
+              showClear
+              pure
+              size='small'
+              presets={DATE_RANGE_PRESETS.map((preset) => ({
+                text: t(preset.text),
+                start: preset.start(),
+                end: preset.end(),
+              }))}
+            />
+          </div>
+          <Form.Input
+            field='model_name'
+            prefix={<IconSearch />}
+            placeholder={t('模型名称，支持 % 通配')}
+            showClear
+            pure
+            size='small'
+          />
+          <Form.Input
+            field='username'
+            prefix={<IconSearch />}
+            placeholder={t('用户名')}
+            showClear
+            pure
+            size='small'
+          />
+          <Form.InputNumber
+            field='user_id'
+            prefix={<IconSearch />}
+            placeholder={t('用户 ID')}
+            min={1}
+            pure
+            size='small'
+          />
+          <Form.InputNumber
+            field='channel'
+            prefix={<IconSearch />}
+            placeholder={t('渠道 ID')}
+            min={1}
+            pure
+            size='small'
+          />
+          <Form.Input
+            field='group'
+            prefix={<IconSearch />}
+            placeholder={t('分组')}
+            showClear
+            pure
+            size='small'
+          />
+          <Form.InputNumber
+            field='limit'
+            placeholder={t('返回条数')}
+            min={1}
+            max={10000}
+            pure
+            size='small'
+          />
+        </div>
+        <div className='flex flex-col sm:flex-row justify-between gap-2'>
+          <div className='flex flex-col sm:flex-row gap-2 sm:items-center'>
+            <Form.Select
+              field='logType'
+              className='w-full sm:w-[140px]'
+              placeholder={t('导出类型')}
+              pure
+              size='small'
+            >
+              {LOG_TYPE_OPTIONS.map((option) => (
+                <Form.Select.Option key={option.value} value={option.value}>
+                  {t(option.label)}
+                </Form.Select.Option>
+              ))}
+            </Form.Select>
+            <Text type='secondary' size='small'>
+              {t('默认筛选 Seedance 2.0 系列；清空模型名称可查看全部模型。')}
+            </Text>
+          </div>
+          <div className='flex gap-2 justify-end'>
+            <Button
+              type='tertiary'
+              htmlType='submit'
+              icon={<IconSearch />}
+              loading={loading}
+              size='small'
+            >
+              {t('查询')}
+            </Button>
+            <Button
+              type='tertiary'
+              icon={<IconRefresh />}
+              onClick={resetFilters}
+              size='small'
+            >
+              {t('重置')}
+            </Button>
+            <Button
+              type='primary'
+              icon={<IconDownload />}
+              loading={exporting}
+              onClick={downloadBillingCsv}
+              size='small'
+            >
+              {t('导出流水')}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </Form>
+  );
+
+  const statsArea = (
+    <div className='flex flex-col gap-3'>
+      <div>
+        <Title heading={5} className='!mb-1'>
+          {t('账单管理')}
+        </Title>
+        <Text type='secondary'>
+          {t(
+            '按用户、模型、渠道和分组汇总消费与退款，适用于 Seedance 2.0 充值扣费对账。',
+          )}
+        </Text>
+      </div>
+      <div className='grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-2'>
+        {stats.map((item) => (
+          <Card key={item.title} className='!rounded-xl' bordered>
+            <div className='flex flex-col gap-1'>
+              <Text type='secondary' size='small'>
+                {item.title}
+              </Text>
+              <Text strong className='text-lg'>
+                {item.value}
+              </Text>
+              <Text type='tertiary' size='small'>
+                {item.desc}
+              </Text>
+            </div>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className='mt-[60px] px-2'>
+      <CardPro type='type2' statsArea={statsArea} searchArea={searchArea} t={t}>
+        <CardTable
+          columns={columns}
+          dataSource={(summary.items || []).map((item, index) => ({
+            ...item,
+            key: `${item.user_id}-${item.model_name}-${item.channel_id}-${item.group}-${index}`,
+          }))}
+          rowKey='key'
+          loading={loading}
+          scroll={{ x: 'max-content' }}
+          size='small'
+          className='rounded-xl overflow-hidden'
+          empty={<Empty description={t('暂无账单数据')} />}
+          pagination={false}
+        />
+      </CardPro>
+    </div>
+  );
+};
+
+export default BillingPage;

@@ -30,6 +30,7 @@ import {
 } from '@douyinfe/semi-ui';
 import { API, showSuccess, showError } from '../../../helpers';
 import { StatusContext } from '../../../context/Status';
+import { mergeAdminConfig } from '../../../hooks/common/useSidebar';
 
 const { Text } = Typography;
 
@@ -61,6 +62,7 @@ export default function SettingsSidebarModulesAdmin(props) {
     admin: {
       enabled: true,
       channel: true,
+      billing: true,
       models: true,
       deployment: true,
       redemption: true,
@@ -122,6 +124,7 @@ export default function SettingsSidebarModulesAdmin(props) {
       admin: {
         enabled: true,
         channel: true,
+        billing: true,
         models: true,
         deployment: true,
         redemption: true,
@@ -173,33 +176,13 @@ export default function SettingsSidebarModulesAdmin(props) {
     // 从 props.options 中获取配置
     if (props.options && props.options.SidebarModulesAdmin) {
       try {
-        const modules = JSON.parse(props.options.SidebarModulesAdmin);
+        const modules = mergeAdminConfig(
+          JSON.parse(props.options.SidebarModulesAdmin),
+        );
         setSidebarModulesAdmin(modules);
       } catch (error) {
         // 使用默认配置
-        const defaultModules = {
-          chat: { enabled: true, playground: true, chat: true },
-          console: {
-            enabled: true,
-            detail: true,
-            token: true,
-            log: true,
-            midjourney: true,
-            task: true,
-          },
-          personal: { enabled: true, topup: true, personal: true },
-          admin: {
-            enabled: true,
-            channel: true,
-            models: true,
-            deployment: true,
-            redemption: true,
-            user: true,
-            subscription: true,
-            setting: true,
-          },
-        };
-        setSidebarModulesAdmin(defaultModules);
+        setSidebarModulesAdmin(mergeAdminConfig(null));
       }
     }
   }, [props.options]);
@@ -254,6 +237,11 @@ export default function SettingsSidebarModulesAdmin(props) {
       description: t('系统管理功能'),
       modules: [
         { key: 'channel', title: t('渠道管理'), description: t('API渠道配置') },
+        {
+          key: 'billing',
+          title: t('账单管理'),
+          description: t('消费扣费与退款对账'),
+        },
         { key: 'models', title: t('模型管理'), description: t('AI模型配置') },
         {
           key: 'deployment',

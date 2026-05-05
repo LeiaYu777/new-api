@@ -85,6 +85,7 @@ const NotificationSettings = ({
     admin: {
       enabled: true,
       channel: true,
+      billing: true,
       models: true,
       deployment: true,
       subscription: true,
@@ -169,6 +170,7 @@ const NotificationSettings = ({
       admin: {
         enabled: true,
         channel: true,
+        billing: true,
         models: true,
         deployment: true,
         subscription: true,
@@ -293,6 +295,11 @@ const NotificationSettings = ({
       description: t('系统管理功能'),
       modules: [
         { key: 'channel', title: t('渠道管理'), description: t('API渠道配置') },
+        {
+          key: 'billing',
+          title: t('账单管理'),
+          description: t('消费扣费与退款对账'),
+        },
         { key: 'models', title: t('模型管理'), description: t('AI模型配置') },
         {
           key: 'deployment',
@@ -478,7 +485,10 @@ const NotificationSettings = ({
                     checkedText={t('开')}
                     uncheckedText={t('关')}
                     onChange={(value) =>
-                      handleFormChange('upstreamModelUpdateNotifyEnabled', value)
+                      handleFormChange(
+                        'upstreamModelUpdateNotifyEnabled',
+                        value,
+                      )
                     }
                     extraText={t(
                       '仅管理员可用。开启后，当系统定时检测全部渠道发现上游模型变更或检测异常时，将按你选择的通知方式发送汇总通知；渠道或模型过多时会自动省略部分明细。',

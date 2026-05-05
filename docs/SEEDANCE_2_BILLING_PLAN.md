@@ -25,7 +25,7 @@
 1. Seedance 2.0 模型名未内置。
 2. Seedance 2.0 官方参数、返回结构、任务状态、usage 字段未经过真实联调验证。
 3. Seedance 2.0 专属价格策略未配置。
-4. 后台账单查询足够做运营核对，但缺少“客户账单周期报表/导出”这种产品化页面。
+4. 后台已新增管理员账单页，可做 Seedance 2.0 消费/退款汇总与流水导出；客户账单周期报表仍建议后续产品化。
 5. 如上游不稳定返回 `usage.total_tokens`，需要自定义 Seedance 2.0 的预估价与最终价计算逻辑。
 
 ## 3. MVP 范围
@@ -217,6 +217,14 @@ GET /api/billing/summary?user_id=&model_name=&start_timestamp=&end_timestamp=
 ```
 
 返回按用户、模型、渠道、分组聚合后的 `consume_quota`、`refund_quota`、`net_quota`、`request_count`、`refund_count`、`total_tokens`，用于后台快速对账。
+
+管理员控制台已新增页面：
+
+```text
+/console/billing
+```
+
+该页面默认按 `doubao-seedance-2-0%` 筛选 Seedance 2.0 系列模型，支持按时间、用户、模型、渠道、分组查询汇总，并可导出消费/退款/充值流水 CSV。
 
 返回 CSV 字段：
 
