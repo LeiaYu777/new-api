@@ -45,7 +45,9 @@ git archive --format=tar.gz --prefix="new-api-${VERSION}/" --output="${SOURCE_AR
   echo "4. Seedance billing plan: docs/SEEDANCE_2_BILLING_PLAN.md"
   echo "5. Acceptance runbook: docs/SEEDANCE_2_BILLING_ACCEPTANCE.md"
   echo "6. Remaining tasks: docs/SEEDANCE_2_BILLING_REMAINING_TASKS.md"
-  echo "7. SBOM: sbom.spdx.json, if generated for this release"
+  echo "7. Production preflight: scripts/seedance-billing-preflight.sh"
+  echo "8. Smoke test: scripts/seedance-billing-smoke.sh"
+  echo "9. SBOM: sbom.spdx.json, if generated for this release"
   echo
   echo "## Branch Change Log"
   echo

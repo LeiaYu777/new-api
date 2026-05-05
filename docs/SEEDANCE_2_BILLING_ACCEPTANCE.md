@@ -23,9 +23,27 @@ SEEDANCE_DEFAULT_DURATION=5
 SEEDANCE_MAX_DURATION=60
 SEEDANCE_MAX_IMAGES=8
 SEEDANCE_MAX_REFERENCE_VIDEOS=3
+SEEDANCE_REMOTE_URL_ALLOWLIST=cdn.example.com,*.oss-cn-hangzhou.aliyuncs.com
+SEEDANCE_CALLBACK_URL_ALLOWLIST=hooks.example.com
 ```
 
 建议先用固定价格上线，再根据上游 usage 稳定性决定是否按 token 差额结算。
+
+配置完成后，先执行生产预检脚本：
+
+```bash
+CONFIG_FILE=.env.production \
+MODEL=doubao-seedance-2-0 \
+scripts/seedance-billing-preflight.sh
+```
+
+如果当前节点就是异步任务 worker，可追加：
+
+```bash
+REQUIRE_LOCAL_WORKER=true scripts/seedance-billing-preflight.sh
+```
+
+预检脚本不会提交真实任务，只检查 worker、usage 策略、素材域名 allowlist、月结和告警阈值等上线前配置。
 
 ### 2.2 渠道配置
 

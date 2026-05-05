@@ -53,16 +53,18 @@
 
 1. 在预发环境配置客户真实火山方舟 Seedance 2.0 渠道、模型映射和 API Key。
 2. 配置真实固定价格，先不开启严格 usage 校验。
-3. 用钱包模式执行 smoke test，保存账单页和 CSV 证据。
-4. 用订阅模式执行 smoke test，验证订阅额度扣费与退款。
-5. 执行余额不足、非法参数、任务失败或超时场景。
-6. 根据真实返回校正多模态字段映射，并配置生产素材域名 allowlist 或对象存储中转。
-7. 执行 `scripts/package-seedance-delivery.sh`，生成交付包；如闭源交付，保存商业授权凭证。
+3. 执行 `scripts/seedance-billing-preflight.sh`，检查 worker、usage 策略、素材域名 allowlist、月结和告警阈值。
+4. 用钱包模式执行 smoke test，保存账单页和 CSV 证据。
+5. 用订阅模式执行 smoke test，验证订阅额度扣费与退款。
+6. 执行余额不足、非法参数、任务失败或超时场景。
+7. 根据真实返回校正多模态字段映射，并配置生产素材域名 allowlist 或对象存储中转。
+8. 执行 `scripts/package-seedance-delivery.sh`，生成交付包；如闭源交付，保存商业授权凭证。
 
 ## 6. 相关文档
 
 1. 改造方案：`docs/SEEDANCE_2_BILLING_PLAN.md`
 2. 验收手册：`docs/SEEDANCE_2_BILLING_ACCEPTANCE.md`
-3. 真实接口 smoke test：`scripts/seedance-billing-smoke.sh`
-4. 交付清单：`compliance/SEEDANCE_2_BILLING_DELIVERY.md`
-5. 交付打包脚本：`scripts/package-seedance-delivery.sh`
+3. 生产预检脚本：`scripts/seedance-billing-preflight.sh`
+4. 真实接口 smoke test：`scripts/seedance-billing-smoke.sh`
+5. 交付清单：`compliance/SEEDANCE_2_BILLING_DELIVERY.md`
+6. 交付打包脚本：`scripts/package-seedance-delivery.sh`
