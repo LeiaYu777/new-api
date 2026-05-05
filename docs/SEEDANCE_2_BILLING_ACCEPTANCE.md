@@ -1,0 +1,226 @@
+# Seedance 2.0 充值扣费验收手册
+
+## 1. 验收目标
+
+本手册用于验收客户要求的最小闭环：
+
+1. 用户可以充值或购买订阅。
+2. 用户可以调用字节/火山方舟 Seedance 2.0 视频生成模型。
+3. 系统可以按任务消耗扣除钱包余额或订阅额度。
+4. 任务失败、超时或严格 usage 校验失败时可以退款。
+5. 管理员可以在后台查看汇总账单并导出流水。
+
+## 2. 前置条件
+
+### 2.1 服务配置
+
+生产或预发环境必须完成以下配置：
+
+```env
+SEEDANCE_BILLING_BY_USAGE=true
+SEEDANCE_BILLING_STRICT_USAGE=false
+SEEDANCE_DEFAULT_DURATION=5
+SEEDANCE_MAX_DURATION=60
+SEEDANCE_MAX_IMAGES=8
+```
+
+建议先用固定价格上线，再根据上游 usage 稳定性决定是否按 token 差额结算。
+
+### 2.2 渠道配置
+
+管理员进入控制台：
+
+```text
+/console/channel
+```
+
+配置项：
+
+1. 渠道类型选择 Doubao Video 或火山方舟对应视频渠道。
+2. Base URL 使用火山方舟控制台提供的正式地址。
+3. API Key 使用客户火山方舟账号的有效密钥。
+4. 模型列表包含 `doubao-seedance-2-0` 或通过模型映射指向真实上游模型 ID。
+5. 渠道启用并通过一次渠道连通性检查。
+
+### 2.3 价格配置
+
+管理员进入模型/倍率设置，至少配置一种价格策略：
+
+1. 固定价格：`doubao-seedance-2-0` 设置为每次任务固定扣费。
+2. 倍率价格：`doubao-seedance-2-0` 配置模型倍率，等待上游返回 usage 后差额结算。
+
+上线建议：
+
+1. 预发环境可以启用 `SEEDANCE_BILLING_BY_USAGE=true` 观察 usage。
+2. 生产首日建议保留固定价格兜底。
+3. 如果上游 usage 经常缺失，不建议打开 `SEEDANCE_BILLING_STRICT_USAGE=true`，否则成功视频任务可能因为 usage 缺失被判失败并退款。
+
+## 3. 钱包扣费验收
+
+### 3.1 准备用户和令牌
+
+1. 创建普通用户。
+2. 给用户充值。
+3. 创建 API 令牌。
+4. 用户计费偏好设置为 `wallet_first` 或 `wallet_only`。
+
+记录验收前数据：
+
+1. 用户余额。
+2. Token 剩余额度。
+3. `/console/billing` 当前净扣费。
+
+### 3.2 提交 Seedance 2.0 任务
+
+使用脚本：
+
+```bash
+API_KEY=sk-xxx \
+BASE_URL=https://your-domain \
+MODEL=doubao-seedance-2-0 \
+DURATION=5 \
+RESOLUTION=720p \
+RATIO=16:9 \
+GENERATE_AUDIO=false \
+./scripts/seedance-billing-smoke.sh
+```
+
+预期结果：
+
+1. 返回 `task_id`。
+2. 用户余额在任务提交后发生预扣。
+3. Token 剩余额度同步预扣。
+4. 任务完成后状态为 `completed` 或 `SUCCESS`。
+5. 任务失败时状态为 `failed` 或 `FAILURE`，余额和 Token 额度退款。
+
+### 3.3 后台看账
+
+管理员进入：
+
+```text
+/console/billing
+```
+
+筛选条件：
+
+1. 模型：`doubao-seedance-2-0%`
+2. 用户名或用户 ID：本次测试用户
+3. 时间：本次测试时间窗口
+
+预期结果：
+
+1. 成功任务出现消费扣费。
+2. 失败任务出现退款返还。
+3. 净扣费 = 消费扣费 - 退款返还。
+4. CSV 导出包含 `billing_source=wallet`。
+5. CSV 导出包含 `task_id`、`pre_consumed_quota`、`actual_quota`。
+
+## 4. 订阅扣费验收
+
+### 4.1 准备订阅
+
+1. 管理员创建订阅套餐。
+2. 用户购买或被分配订阅。
+3. 用户计费偏好设置为 `subscription_first` 或 `subscription_only`。
+4. 记录订阅总额度和已用额度。
+
+### 4.2 提交任务
+
+使用同一个脚本提交任务：
+
+```bash
+API_KEY=sk-xxx BASE_URL=https://your-domain ./scripts/seedance-billing-smoke.sh
+```
+
+预期结果：
+
+1. 任务提交后订阅额度被预扣。
+2. 成功任务按实际额度差额结算。
+3. 失败任务退还订阅预扣。
+4. Token 额度与订阅额度保持一致变化。
+
+### 4.3 后台看账
+
+CSV 导出预期：
+
+1. `billing_source=subscription`
+2. `subscription_id` 不为空
+3. `pre_consumed_quota` 不为空
+4. `actual_quota` 成功任务为最终应扣额度，失败任务为 `0`
+
+## 5. 异常场景验收
+
+### 5.1 余额不足
+
+操作：
+
+1. 将用户余额调低到低于 Seedance 2.0 预扣额度。
+2. 使用钱包模式提交任务。
+
+预期结果：
+
+1. 请求被拒绝。
+2. 不创建上游任务。
+3. 不产生额外消费日志。
+4. 后台可看到错误提示或错误日志。
+
+### 5.2 参数非法
+
+操作：
+
+```bash
+API_KEY=sk-xxx \
+BASE_URL=https://your-domain \
+RESOLUTION=16k \
+./scripts/seedance-billing-smoke.sh
+```
+
+预期结果：
+
+1. 请求返回 `invalid_resolution`。
+2. 不产生上游成本。
+3. 不产生消费扣费。
+
+### 5.3 usage 缺失
+
+预发环境可临时开启：
+
+```env
+SEEDANCE_BILLING_STRICT_USAGE=true
+```
+
+预期结果：
+
+1. 如果上游成功但没有返回 usage，系统将任务标记为失败。
+2. 预扣额度退款。
+3. `/console/billing` 出现退款记录。
+
+## 6. 验收证据
+
+每次验收建议保存以下证据：
+
+1. 提交任务的请求体和返回 `task_id`。
+2. 任务最终查询结果。
+3. 用户余额或订阅额度验收前后截图。
+4. `/console/billing` 汇总截图。
+5. CSV 导出文件。
+6. 服务端日志中与 `task_id` 对应的计费记录。
+
+## 7. 通过标准
+
+该功能可以交付给客户的最低通过标准：
+
+1. 钱包扣费成功任务：预扣、完成、账单汇总、CSV 导出全部正确。
+2. 钱包扣费失败任务：预扣后退款，无净扣费异常。
+3. 订阅扣费成功任务：订阅已用额度增加，账单标记 `subscription`。
+4. 订阅扣费失败任务：订阅预扣退还。
+5. 非法参数不会发起上游调用。
+6. 管理员可通过 `/console/billing` 查到用户、模型、渠道、净扣费。
+
+## 8. 不通过处理
+
+1. 查不到任务：确认渠道、模型映射和 API Key。
+2. 没有扣费：确认模型价格或倍率不为 0。
+3. 没有退款：确认任务轮询 worker 正常运行。
+4. CSV 缺少资金来源：确认任务日志 `other` 字段包含 `billing_source`。
+5. 任务长期处理中：检查上游任务状态、轮询间隔和任务超时配置。

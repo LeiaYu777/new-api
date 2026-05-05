@@ -339,6 +339,12 @@ curl -sS 'https://your-domain/api/log/?model_name=doubao-seedance-2-0' \
 
 ## 9. 验收清单
 
+完整上线验收步骤见：
+
+```text
+docs/SEEDANCE_2_BILLING_ACCEPTANCE.md
+```
+
 ### 9.1 充值钱包
 
 1. 用户充值成功后余额增加。
