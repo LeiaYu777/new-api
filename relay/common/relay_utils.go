@@ -86,18 +86,57 @@ func validateMultipartTaskRequest(c *gin.Context, info *RelayInfo, action string
 
 	formData := c.Request.PostForm
 	req = TaskSubmitReq{
-		Prompt:   formData.Get("prompt"),
-		Model:    formData.Get("model"),
-		Mode:     formData.Get("mode"),
-		Image:    formData.Get("image"),
-		Size:     formData.Get("size"),
-		Metadata: make(map[string]interface{}),
+		Prompt:      formData.Get("prompt"),
+		Model:       formData.Get("model"),
+		Mode:        formData.Get("mode"),
+		Image:       formData.Get("image"),
+		Size:        formData.Get("size"),
+		Resolution:  formData.Get("resolution"),
+		Ratio:       formData.Get("ratio"),
+		ServiceTier: formData.Get("service_tier"),
+		CallbackURL: formData.Get("callback_url"),
+		Metadata:    make(map[string]interface{}),
 	}
 
 	if durationStr := formData.Get("seconds"); durationStr != "" {
 		if duration, err := strconv.Atoi(durationStr); err == nil {
 			req.Duration = duration
 		}
+	}
+	if durationStr := formData.Get("duration"); durationStr != "" {
+		if duration, err := strconv.Atoi(durationStr); err == nil {
+			req.Duration = duration
+		}
+	}
+	if framesStr := formData.Get("frames"); framesStr != "" {
+		if frames, err := strconv.Atoi(framesStr); err == nil {
+			req.Frames = dto.IntValue(frames)
+		}
+	}
+	if seedStr := formData.Get("seed"); seedStr != "" {
+		if seed, err := strconv.Atoi(seedStr); err == nil {
+			req.Seed = dto.IntValue(seed)
+		}
+	}
+	if expiresStr := formData.Get("execution_expires_after"); expiresStr != "" {
+		if expires, err := strconv.Atoi(expiresStr); err == nil {
+			req.ExecutionExpiresAfter = dto.IntValue(expires)
+		}
+	}
+	if boolValue, ok := parseTaskBoolValue(formData.Get("return_last_frame")); ok {
+		req.ReturnLastFrame = &boolValue
+	}
+	if boolValue, ok := parseTaskBoolValue(formData.Get("generate_audio")); ok {
+		req.GenerateAudio = &boolValue
+	}
+	if boolValue, ok := parseTaskBoolValue(formData.Get("draft")); ok {
+		req.Draft = &boolValue
+	}
+	if boolValue, ok := parseTaskBoolValue(formData.Get("camera_fixed")); ok {
+		req.CameraFixed = &boolValue
+	}
+	if boolValue, ok := parseTaskBoolValue(formData.Get("watermark")); ok {
+		req.Watermark = &boolValue
 	}
 
 	if images := formData["images"]; len(images) > 0 {
@@ -183,16 +222,42 @@ func ValidateMultipartDirect(c *gin.Context, info *RelayInfo) *dto.TaskError {
 
 func isKnownTaskField(field string) bool {
 	knownFields := map[string]bool{
-		"prompt":          true,
-		"model":           true,
-		"mode":            true,
-		"image":           true,
-		"images":          true,
-		"size":            true,
-		"duration":        true,
-		"input_reference": true, // Sora 特有字段
+		"prompt":                  true,
+		"model":                   true,
+		"mode":                    true,
+		"image":                   true,
+		"images":                  true,
+		"size":                    true,
+		"duration":                true,
+		"seconds":                 true,
+		"input_reference":         true, // Sora 特有字段
+		"callback_url":            true,
+		"return_last_frame":       true,
+		"service_tier":            true,
+		"execution_expires_after": true,
+		"generate_audio":          true,
+		"draft":                   true,
+		"resolution":              true,
+		"ratio":                   true,
+		"frames":                  true,
+		"seed":                    true,
+		"camera_fixed":            true,
+		"watermark":               true,
 	}
 	return knownFields[field]
+}
+
+func parseTaskBoolValue(raw string) (dto.BoolValue, bool) {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "true", "1", "yes", "on":
+		v := dto.BoolValue(true)
+		return v, true
+	case "false", "0", "no", "off":
+		v := dto.BoolValue(false)
+		return v, true
+	default:
+		return false, false
+	}
 }
 
 func ValidateBasicTaskRequest(c *gin.Context, info *RelayInfo, action string) *dto.TaskError {

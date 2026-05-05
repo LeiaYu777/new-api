@@ -664,16 +664,28 @@ type TaskRelayInfo struct {
 }
 
 type TaskSubmitReq struct {
-	Prompt         string                 `json:"prompt"`
-	Model          string                 `json:"model,omitempty"`
-	Mode           string                 `json:"mode,omitempty"`
-	Image          string                 `json:"image,omitempty"`
-	Images         []string               `json:"images,omitempty"`
-	Size           string                 `json:"size,omitempty"`
-	Duration       int                    `json:"duration,omitempty"`
-	Seconds        string                 `json:"seconds,omitempty"`
-	InputReference string                 `json:"input_reference,omitempty"`
-	Metadata       map[string]interface{} `json:"metadata,omitempty"`
+	Prompt                string                 `json:"prompt"`
+	Model                 string                 `json:"model,omitempty"`
+	Mode                  string                 `json:"mode,omitempty"`
+	Image                 string                 `json:"image,omitempty"`
+	Images                []string               `json:"images,omitempty"`
+	Size                  string                 `json:"size,omitempty"`
+	Duration              int                    `json:"duration,omitempty"`
+	Seconds               string                 `json:"seconds,omitempty"`
+	InputReference        string                 `json:"input_reference,omitempty"`
+	CallbackURL           string                 `json:"callback_url,omitempty"`
+	ReturnLastFrame       *dto.BoolValue         `json:"return_last_frame,omitempty"`
+	ServiceTier           string                 `json:"service_tier,omitempty"`
+	ExecutionExpiresAfter dto.IntValue           `json:"execution_expires_after,omitempty"`
+	GenerateAudio         *dto.BoolValue         `json:"generate_audio,omitempty"`
+	Draft                 *dto.BoolValue         `json:"draft,omitempty"`
+	Resolution            string                 `json:"resolution,omitempty"`
+	Ratio                 string                 `json:"ratio,omitempty"`
+	Frames                dto.IntValue           `json:"frames,omitempty"`
+	Seed                  dto.IntValue           `json:"seed,omitempty"`
+	CameraFixed           *dto.BoolValue         `json:"camera_fixed,omitempty"`
+	Watermark             *dto.BoolValue         `json:"watermark,omitempty"`
+	Metadata              map[string]interface{} `json:"metadata,omitempty"`
 }
 
 func (t *TaskSubmitReq) GetPrompt() string {

@@ -1,8 +1,11 @@
 package controller
 
 import (
+	"encoding/csv"
+	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
@@ -67,6 +70,56 @@ func SearchUserLogs(c *gin.Context) {
 		"success": false,
 		"message": "该接口已废弃",
 	})
+}
+
+func ExportBillingLogs(c *gin.Context) {
+	logType, _ := strconv.Atoi(c.Query("type"))
+	startTimestamp, _ := strconv.ParseInt(c.Query("start_timestamp"), 10, 64)
+	endTimestamp, _ := strconv.ParseInt(c.Query("end_timestamp"), 10, 64)
+	username := c.Query("username")
+	userId, _ := strconv.Atoi(c.Query("user_id"))
+	tokenName := c.Query("token_name")
+	modelName := c.Query("model_name")
+	channel, _ := strconv.Atoi(c.Query("channel"))
+	group := c.Query("group")
+	requestId := c.Query("request_id")
+	limit, _ := strconv.Atoi(c.Query("limit"))
+
+	logs, err := model.GetBillingExportLogs(logType, startTimestamp, endTimestamp, modelName, username, userId, tokenName, channel, group, requestId, limit)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+
+	c.Header("Content-Type", "text/csv; charset=utf-8")
+	c.Header("Content-Disposition", "attachment; filename=billing-logs.csv")
+	writer := csv.NewWriter(c.Writer)
+	_ = writer.Write([]string{"created_at", "user_id", "username", "model_name", "channel_id", "token_id", "log_type", "quota", "group", "request_id", "task_id"})
+	for _, log := range logs {
+		taskId := ""
+		if other, _ := common.StrToMap(log.Other); other != nil {
+			if v, ok := other["task_id"]; ok {
+				taskId = fmt.Sprint(v)
+			}
+		}
+		_ = writer.Write([]string{
+			time.Unix(log.CreatedAt, 0).Format(time.RFC3339),
+			strconv.Itoa(log.UserId),
+			log.Username,
+			log.ModelName,
+			strconv.Itoa(log.ChannelId),
+			strconv.Itoa(log.TokenId),
+			strconv.Itoa(log.Type),
+			strconv.Itoa(log.Quota),
+			log.Group,
+			log.RequestId,
+			taskId,
+		})
+	}
+	writer.Flush()
+	if err := writer.Error(); err != nil {
+		common.ApiError(c, err)
+	}
 }
 
 func GetLogByKey(c *gin.Context) {

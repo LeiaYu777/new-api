@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
@@ -104,7 +106,17 @@ func (a *TaskAdaptor) Init(info *relaycommon.RelayInfo) {
 // ValidateRequestAndSetAction parses body, validates fields and sets default action.
 func (a *TaskAdaptor) ValidateRequestAndSetAction(c *gin.Context, info *relaycommon.RelayInfo) (taskErr *dto.TaskError) {
 	// Accept only POST /v1/video/generations as "generate" action.
-	return relaycommon.ValidateBasicTaskRequest(c, info, constant.TaskActionGenerate)
+	if taskErr = relaycommon.ValidateBasicTaskRequest(c, info, constant.TaskActionGenerate); taskErr != nil {
+		return taskErr
+	}
+	req, err := relaycommon.GetTaskRequest(c)
+	if err != nil {
+		return service.TaskErrorWrapperLocal(err, "invalid_request", http.StatusBadRequest)
+	}
+	if IsSeedance2Model(req.Model) {
+		return a.validateSeedance2Request(&req)
+	}
+	return nil
 }
 
 // BuildRequestURL constructs the upstream URL.
@@ -135,6 +147,11 @@ func (a *TaskAdaptor) BuildRequestBody(c *gin.Context, info *relaycommon.RelayIn
 		body.Model = info.UpstreamModelName
 	} else {
 		info.UpstreamModelName = body.Model
+	}
+	if IsSeedance2Model(body.Model) {
+		if taskErr := a.validateSeedance2Request(&req); taskErr != nil {
+			return nil, taskErr.Error
+		}
 	}
 	data, err := common.Marshal(body)
 	if err != nil {
@@ -214,8 +231,29 @@ func (a *TaskAdaptor) GetChannelName() string {
 
 func (a *TaskAdaptor) convertToRequestPayload(req *relaycommon.TaskSubmitReq) (*requestPayload, error) {
 	r := requestPayload{
-		Model:   req.Model,
-		Content: []ContentItem{},
+		Model:                 req.Model,
+		Content:               []ContentItem{},
+		CallbackURL:           req.CallbackURL,
+		ReturnLastFrame:       req.ReturnLastFrame,
+		ServiceTier:           req.ServiceTier,
+		ExecutionExpiresAfter: req.ExecutionExpiresAfter,
+		GenerateAudio:         req.GenerateAudio,
+		Draft:                 req.Draft,
+		Resolution:            req.Resolution,
+		Ratio:                 req.Ratio,
+		Duration:              dto.IntValue(req.Duration),
+		Frames:                req.Frames,
+		Seed:                  req.Seed,
+		CameraFixed:           req.CameraFixed,
+		Watermark:             req.Watermark,
+	}
+	if r.Duration == 0 && req.Seconds != "" {
+		if seconds, err := strconv.Atoi(req.Seconds); err == nil {
+			r.Duration = dto.IntValue(seconds)
+		}
+	}
+	if r.Resolution == "" && req.Size != "" {
+		r.Resolution = req.Size
 	}
 
 	// Add text prompt
@@ -246,6 +284,43 @@ func (a *TaskAdaptor) convertToRequestPayload(req *relaycommon.TaskSubmitReq) (*
 	return &r, nil
 }
 
+func (a *TaskAdaptor) EstimateBilling(c *gin.Context, info *relaycommon.RelayInfo) map[string]float64 {
+	req, err := relaycommon.GetTaskRequest(c)
+	if err != nil {
+		return nil
+	}
+	modelName := req.Model
+	if modelName == "" {
+		modelName = info.OriginModelName
+	}
+	if !IsSeedance2Model(modelName) && !IsSeedance2Model(info.UpstreamModelName) {
+		return nil
+	}
+	body, err := a.convertToRequestPayload(&req)
+	if err != nil {
+		return nil
+	}
+
+	ratios := map[string]float64{}
+	defaultDuration := common.GetEnvOrDefault("SEEDANCE_DEFAULT_DURATION", 5)
+	if defaultDuration <= 0 {
+		defaultDuration = 5
+	}
+	if duration := int(body.Duration); duration > 0 && duration != defaultDuration {
+		ratios["duration"] = float64(duration) / float64(defaultDuration)
+	}
+	if ratio, ok := seedanceResolutionRatio(body.Resolution); ok && ratio != 1 {
+		ratios["resolution"] = ratio
+	}
+	if body.GenerateAudio != nil && bool(*body.GenerateAudio) {
+		ratios["audio"] = 1.2
+	}
+	if len(ratios) == 0 {
+		return nil
+	}
+	return ratios
+}
+
 func (a *TaskAdaptor) ParseTaskResult(respBody []byte) (*relaycommon.TaskInfo, error) {
 	resTask := responseTask{}
 	if err := common.Unmarshal(respBody, &resTask); err != nil {
@@ -268,9 +343,16 @@ func (a *TaskAdaptor) ParseTaskResult(respBody []byte) (*relaycommon.TaskInfo, e
 		taskResult.Status = model.TaskStatusSuccess
 		taskResult.Progress = "100%"
 		taskResult.Url = resTask.Content.VideoURL
+		if IsSeedance2Model(resTask.Model) && common.GetEnvOrDefaultBool("SEEDANCE_BILLING_STRICT_USAGE", false) && resTask.Usage.TotalTokens <= 0 {
+			taskResult.Status = model.TaskStatusFailure
+			taskResult.Reason = "seedance usage missing"
+			return &taskResult, nil
+		}
 		// 解析 usage 信息用于按倍率计费
-		taskResult.CompletionTokens = resTask.Usage.CompletionTokens
-		taskResult.TotalTokens = resTask.Usage.TotalTokens
+		if shouldReportTaskUsage(resTask.Model) {
+			taskResult.CompletionTokens = resTask.Usage.CompletionTokens
+			taskResult.TotalTokens = resTask.Usage.TotalTokens
+		}
 	case "failed":
 		taskResult.Status = model.TaskStatusFailure
 		taskResult.Progress = "100%"
@@ -282,6 +364,92 @@ func (a *TaskAdaptor) ParseTaskResult(respBody []byte) (*relaycommon.TaskInfo, e
 	}
 
 	return &taskResult, nil
+}
+
+func (a *TaskAdaptor) validateSeedance2Request(req *relaycommon.TaskSubmitReq) *dto.TaskError {
+	for key := range req.Metadata {
+		if !seedanceAllowedMetadata[key] {
+			return service.TaskErrorWrapperLocal(fmt.Errorf("unsupported seedance metadata field: %s", key), "invalid_request", http.StatusBadRequest)
+		}
+	}
+	body, err := a.convertToRequestPayload(req)
+	if err != nil {
+		return service.TaskErrorWrapperLocal(err, "invalid_request", http.StatusBadRequest)
+	}
+	maxDuration := common.GetEnvOrDefault("SEEDANCE_MAX_DURATION", 60)
+	if maxDuration <= 0 {
+		maxDuration = 60
+	}
+	if duration := int(body.Duration); duration < 0 || duration > maxDuration {
+		return service.TaskErrorWrapperLocal(fmt.Errorf("duration must be between 1 and %d seconds", maxDuration), "invalid_duration", http.StatusBadRequest)
+	}
+	maxImages := common.GetEnvOrDefault("SEEDANCE_MAX_IMAGES", 8)
+	if maxImages <= 0 {
+		maxImages = 8
+	}
+	if len(req.Images) > maxImages {
+		return service.TaskErrorWrapperLocal(fmt.Errorf("images cannot exceed %d", maxImages), "invalid_images", http.StatusBadRequest)
+	}
+	if body.Resolution != "" {
+		if _, ok := seedanceResolutionRatio(body.Resolution); !ok {
+			return service.TaskErrorWrapperLocal(fmt.Errorf("unsupported resolution: %s", body.Resolution), "invalid_resolution", http.StatusBadRequest)
+		}
+	}
+	if body.Ratio != "" && !seedanceAllowedRatios[body.Ratio] {
+		return service.TaskErrorWrapperLocal(fmt.Errorf("unsupported ratio: %s", body.Ratio), "invalid_ratio", http.StatusBadRequest)
+	}
+	return nil
+}
+
+var seedanceAllowedMetadata = map[string]bool{
+	"callback_url":            true,
+	"return_last_frame":       true,
+	"service_tier":            true,
+	"execution_expires_after": true,
+	"generate_audio":          true,
+	"draft":                   true,
+	"resolution":              true,
+	"ratio":                   true,
+	"duration":                true,
+	"frames":                  true,
+	"seed":                    true,
+	"camera_fixed":            true,
+	"watermark":               true,
+}
+
+var seedanceAllowedRatios = map[string]bool{
+	"16:9": true,
+	"9:16": true,
+	"1:1":  true,
+	"4:3":  true,
+	"3:4":  true,
+	"21:9": true,
+}
+
+func seedanceResolutionRatio(resolution string) (float64, bool) {
+	switch strings.ToLower(strings.TrimSpace(resolution)) {
+	case "":
+		return 1, true
+	case "480p":
+		return 0.6, true
+	case "720p":
+		return 1, true
+	case "1080p":
+		return 1.6, true
+	case "2k", "1440p":
+		return 2.4, true
+	case "4k", "2160p":
+		return 3.2, true
+	default:
+		return 0, false
+	}
+}
+
+func shouldReportTaskUsage(modelName string) bool {
+	if !IsSeedance2Model(modelName) {
+		return true
+	}
+	return common.GetEnvOrDefaultBool("SEEDANCE_BILLING_BY_USAGE", true)
 }
 
 func (a *TaskAdaptor) ConvertToOpenAIVideo(originTask *model.Task) ([]byte, error) {
