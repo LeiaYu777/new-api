@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
@@ -326,11 +327,15 @@ func GetAllLogs(logType int, startTimestamp int64, endTimestamp int64, modelName
 	return logs, total, err
 }
 
-func GetBillingExportLogs(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, userId int, tokenName string, channel int, group string, requestId string, limit int) (logs []*Log, err error) {
+func GetBillingExportLogs(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, userId int, tokenName string, channel int, group string, requestId string, billingSource string, limit int) (logs []*Log, err error) {
 	if limit <= 0 || limit > logSearchCountLimit {
 		limit = logSearchCountLimit
 	}
 	tx := LOG_DB.Model(&Log{})
+	tx, err = applyBillingSourceFilter(tx, billingSource)
+	if err != nil {
+		return nil, err
+	}
 	if logType != LogTypeUnknown {
 		tx = tx.Where("logs.type = ?", logType)
 	}
@@ -370,6 +375,43 @@ func GetBillingExportLogs(logType int, startTimestamp int64, endTimestamp int64,
 }
 
 const logSearchCountLimit = 10000
+
+const (
+	billingSourceWallet       = "wallet"
+	billingSourceSubscription = "subscription"
+)
+
+func normalizeBillingSource(source string) (string, error) {
+	normalized := strings.ToLower(strings.TrimSpace(source))
+	switch normalized {
+	case "", billingSourceWallet, billingSourceSubscription:
+		return normalized, nil
+	default:
+		return "", fmt.Errorf("unsupported billing_source: %s", source)
+	}
+}
+
+func billingSourceSQLExpr() string {
+	switch common.LogSqlType {
+	case common.DatabaseTypePostgreSQL:
+		return "COALESCE(NULLIF(CASE WHEN logs.other IS NULL OR logs.other = '' THEN '' ELSE logs.other::jsonb ->> 'billing_source' END, ''), 'wallet')"
+	case common.DatabaseTypeMySQL:
+		return "COALESCE(NULLIF(JSON_UNQUOTE(JSON_EXTRACT(NULLIF(logs.other, ''), '$.billing_source')), ''), 'wallet')"
+	default:
+		return "COALESCE(NULLIF(json_extract(NULLIF(logs.other, ''), '$.billing_source'), ''), 'wallet')"
+	}
+}
+
+func applyBillingSourceFilter(tx *gorm.DB, billingSource string) (*gorm.DB, error) {
+	normalized, err := normalizeBillingSource(billingSource)
+	if err != nil {
+		return nil, err
+	}
+	if normalized == "" {
+		return tx, nil
+	}
+	return tx.Where(billingSourceSQLExpr()+" = ?", normalized), nil
+}
 
 func GetUserLogs(userId int, logType int, startTimestamp int64, endTimestamp int64, modelName string, tokenName string, startIdx int, num int, group string, requestId string) (logs []*Log, total int64, err error) {
 	var tx *gorm.DB
@@ -423,17 +465,18 @@ type Stat struct {
 }
 
 type BillingSummaryItem struct {
-	UserId       int    `json:"user_id"`
-	Username     string `json:"username"`
-	ModelName    string `json:"model_name"`
-	ChannelId    int    `json:"channel_id"`
-	Group        string `json:"group" gorm:"column:group_name"`
-	ConsumeQuota int64  `json:"consume_quota"`
-	RefundQuota  int64  `json:"refund_quota"`
-	NetQuota     int64  `json:"net_quota"`
-	RequestCount int64  `json:"request_count"`
-	RefundCount  int64  `json:"refund_count"`
-	TotalTokens  int64  `json:"total_tokens"`
+	UserId        int    `json:"user_id"`
+	Username      string `json:"username"`
+	ModelName     string `json:"model_name"`
+	ChannelId     int    `json:"channel_id"`
+	Group         string `json:"group" gorm:"column:group_name"`
+	BillingSource string `json:"billing_source" gorm:"column:billing_source"`
+	ConsumeQuota  int64  `json:"consume_quota"`
+	RefundQuota   int64  `json:"refund_quota"`
+	NetQuota      int64  `json:"net_quota"`
+	RequestCount  int64  `json:"request_count"`
+	RefundCount   int64  `json:"refund_count"`
+	TotalTokens   int64  `json:"total_tokens"`
 }
 
 type BillingSummary struct {
@@ -446,13 +489,14 @@ type BillingSummary struct {
 	TotalTokens  int64                 `json:"total_tokens"`
 }
 
-func GetBillingSummary(startTimestamp int64, endTimestamp int64, modelName string, username string, userId int, channel int, group string, limit int) (*BillingSummary, error) {
+func GetBillingSummary(startTimestamp int64, endTimestamp int64, modelName string, username string, userId int, channel int, group string, billingSource string, limit int) (*BillingSummary, error) {
 	if limit <= 0 || limit > logSearchCountLimit {
 		limit = logSearchCountLimit
 	}
 	groupExpr := "logs." + logGroupCol
+	billingSourceExpr := billingSourceSQLExpr()
 	tx := LOG_DB.Table("logs").Select(
-		"logs.user_id, logs.username, logs.model_name, logs.channel_id, "+groupExpr+" AS group_name, "+
+		"logs.user_id, logs.username, logs.model_name, logs.channel_id, "+groupExpr+" AS group_name, "+billingSourceExpr+" AS billing_source, "+
 			"sum(case when logs.type = ? then logs.quota else 0 end) AS consume_quota, "+
 			"sum(case when logs.type = ? then logs.quota else 0 end) AS refund_quota, "+
 			"sum(case when logs.type = ? then logs.quota when logs.type = ? then -logs.quota else 0 end) AS net_quota, "+
@@ -466,6 +510,12 @@ func GetBillingSummary(startTimestamp int64, endTimestamp int64, modelName strin
 		LogTypeConsume,
 		LogTypeRefund,
 	).Where("logs.type IN ?", []int{LogTypeConsume, LogTypeRefund})
+
+	var err error
+	tx, err = applyBillingSourceFilter(tx, billingSource)
+	if err != nil {
+		return nil, err
+	}
 
 	if startTimestamp != 0 {
 		tx = tx.Where("logs.created_at >= ?", startTimestamp)
@@ -494,7 +544,7 @@ func GetBillingSummary(startTimestamp int64, endTimestamp int64, modelName strin
 	}
 
 	items := make([]*BillingSummaryItem, 0)
-	err := tx.Group("logs.user_id, logs.username, logs.model_name, logs.channel_id, " + groupExpr).
+	err = tx.Group("logs.user_id, logs.username, logs.model_name, logs.channel_id, " + groupExpr + ", " + billingSourceExpr).
 		Order("net_quota desc").
 		Limit(limit).
 		Scan(&items).Error

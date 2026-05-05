@@ -45,6 +45,17 @@ const LOG_TYPE_OPTIONS = [
   { value: 6, label: '退款' },
 ];
 
+const BILLING_SOURCE_OPTIONS = [
+  { value: '', label: '全部资金来源' },
+  { value: 'wallet', label: '钱包余额' },
+  { value: 'subscription', label: '订阅额度' },
+];
+
+const BILLING_SOURCE_LABELS = {
+  wallet: '钱包余额',
+  subscription: '订阅额度',
+};
+
 const initialDateRange = () => {
   const now = Math.floor(Date.now() / 1000);
   return [
@@ -78,6 +89,7 @@ const buildParams = (values = {}) => {
     user_id: Number(values.user_id || 0),
     channel: Number(values.channel || 0),
     group: trimValue(values.group),
+    billing_source: trimValue(values.billing_source),
     limit: Number(values.limit || DEFAULT_LIMIT),
   };
 
@@ -113,6 +125,7 @@ const BillingPage = () => {
       model_name: DEFAULT_MODEL_FILTER,
       limit: DEFAULT_LIMIT,
       logType: 0,
+      billing_source: '',
     }),
     [],
   );
@@ -175,6 +188,7 @@ const BillingPage = () => {
         delete params.model_name;
         delete params.channel;
         delete params.group;
+        delete params.billing_source;
       }
       const res = await API.get('/api/billing/export', {
         params,
@@ -268,6 +282,20 @@ const BillingPage = () => {
       key: 'group',
       width: 120,
       render: (value) => (value ? <Tag>{value}</Tag> : '-'),
+    },
+    {
+      title: t('资金来源'),
+      dataIndex: 'billing_source',
+      key: 'billing_source',
+      width: 130,
+      render: (value) => {
+        const source = value || 'wallet';
+        return (
+          <Tag color={source === 'subscription' ? 'green' : 'blue'}>
+            {t(BILLING_SOURCE_LABELS[source] || source)}
+          </Tag>
+        );
+      },
     },
     {
       title: t('消费扣费'),
@@ -381,6 +409,18 @@ const BillingPage = () => {
             pure
             size='small'
           />
+          <Form.Select
+            field='billing_source'
+            placeholder={t('资金来源')}
+            pure
+            size='small'
+          >
+            {BILLING_SOURCE_OPTIONS.map((option) => (
+              <Form.Select.Option key={option.value} value={option.value}>
+                {t(option.label)}
+              </Form.Select.Option>
+            ))}
+          </Form.Select>
           <Form.InputNumber
             field='limit'
             placeholder={t('返回条数')}
@@ -452,7 +492,7 @@ const BillingPage = () => {
         </Title>
         <Text type='secondary'>
           {t(
-            '按用户、模型、渠道和分组汇总消费与退款，适用于 Seedance 2.0 充值扣费对账。',
+            '按用户、模型、渠道、分组和资金来源汇总消费与退款，适用于 Seedance 2.0 充值扣费对账。',
           )}
         </Text>
       </div>
@@ -483,7 +523,7 @@ const BillingPage = () => {
           columns={columns}
           dataSource={(summary.items || []).map((item, index) => ({
             ...item,
-            key: `${item.user_id}-${item.model_name}-${item.channel_id}-${item.group}-${index}`,
+            key: `${item.user_id}-${item.model_name}-${item.channel_id}-${item.group}-${item.billing_source}-${index}`,
           }))}
           rowKey='key'
           loading={loading}

@@ -105,9 +105,10 @@ func ExportBillingLogs(c *gin.Context) {
 	channel, _ := strconv.Atoi(c.Query("channel"))
 	group := c.Query("group")
 	requestId := c.Query("request_id")
+	billingSource := c.Query("billing_source")
 	limit, _ := strconv.Atoi(c.Query("limit"))
 
-	logs, err := model.GetBillingExportLogs(logType, startTimestamp, endTimestamp, modelName, username, userId, tokenName, channel, group, requestId, limit)
+	logs, err := model.GetBillingExportLogs(logType, startTimestamp, endTimestamp, modelName, username, userId, tokenName, channel, group, requestId, billingSource, limit)
 	if err != nil {
 		common.ApiError(c, err)
 		return
@@ -169,9 +170,10 @@ func GetBillingSummary(c *gin.Context) {
 	modelName := c.Query("model_name")
 	channel, _ := strconv.Atoi(c.Query("channel"))
 	group := c.Query("group")
+	billingSource := c.Query("billing_source")
 	limit, _ := strconv.Atoi(c.Query("limit"))
 
-	summary, err := model.GetBillingSummary(startTimestamp, endTimestamp, modelName, username, userId, channel, group, limit)
+	summary, err := model.GetBillingSummary(startTimestamp, endTimestamp, modelName, username, userId, channel, group, billingSource, limit)
 	if err != nil {
 		common.ApiError(c, err)
 		return
