@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -500,19 +501,20 @@ func (a *TaskAdaptor) validateSeedance2Request(req *relaycommon.TaskSubmitReq) *
 
 func validateSeedance2ExternalURLs(body *requestPayload) *dto.TaskError {
 	if body.CallbackURL != "" {
-		if err := validateSeedance2URL(body.CallbackURL); err != nil {
+		if err := validateSeedance2URL(body.CallbackURL, seedanceURLAllowlistFromEnv("SEEDANCE_CALLBACK_URL_ALLOWLIST")); err != nil {
 			return service.TaskErrorWrapperLocal(fmt.Errorf("unsafe callback_url: %w", err), "invalid_callback_url", http.StatusBadRequest)
 		}
 	}
 
+	assetAllowlist := seedanceURLAllowlistFromEnv("SEEDANCE_REMOTE_URL_ALLOWLIST")
 	for index, item := range body.Content {
 		if item.ImageURL != nil {
-			if err := validateSeedance2URL(item.ImageURL.URL); err != nil {
+			if err := validateSeedance2URL(item.ImageURL.URL, assetAllowlist); err != nil {
 				return service.TaskErrorWrapperLocal(fmt.Errorf("unsafe image URL at index %d: %w", index, err), "invalid_image_url", http.StatusBadRequest)
 			}
 		}
 		if item.Video != nil {
-			if err := validateSeedance2URL(item.Video.URL); err != nil {
+			if err := validateSeedance2URL(item.Video.URL, assetAllowlist); err != nil {
 				return service.TaskErrorWrapperLocal(fmt.Errorf("unsafe video URL at index %d: %w", index, err), "invalid_video_url", http.StatusBadRequest)
 			}
 		}
@@ -521,7 +523,7 @@ func validateSeedance2ExternalURLs(body *requestPayload) *dto.TaskError {
 	return nil
 }
 
-func validateSeedance2URL(rawURL string) error {
+func validateSeedance2URL(rawURL string, allowlist []string) error {
 	rawURL = strings.TrimSpace(rawURL)
 	if rawURL == "" {
 		return fmt.Errorf("url is required")
@@ -545,7 +547,66 @@ func validateSeedance2URL(rawURL string) error {
 	if err := common.ValidateURLWithFetchSetting(rawURL, fetchSetting.EnableSSRFProtection, fetchSetting.AllowPrivateIp, fetchSetting.DomainFilterMode, fetchSetting.IpFilterMode, fetchSetting.DomainList, fetchSetting.IpList, fetchSetting.AllowedPorts, fetchSetting.ApplyIPFilterForDomain); err != nil {
 		return err
 	}
+	if len(allowlist) > 0 && !seedanceURLHostAllowed(parsedURL.Hostname(), allowlist) {
+		return fmt.Errorf("host not in seedance allowlist: %s", parsedURL.Hostname())
+	}
 	return nil
+}
+
+func seedanceURLAllowlistFromEnv(envName string) []string {
+	raw := strings.TrimSpace(common.GetEnvOrDefaultString(envName, ""))
+	if raw == "" {
+		return nil
+	}
+	items := strings.Split(raw, ",")
+	allowlist := make([]string, 0, len(items))
+	for _, item := range items {
+		host := normalizeSeedanceAllowlistHost(item)
+		if host != "" {
+			allowlist = append(allowlist, host)
+		}
+	}
+	return allowlist
+}
+
+func normalizeSeedanceAllowlistHost(item string) string {
+	item = strings.ToLower(strings.TrimSpace(item))
+	if item == "" {
+		return ""
+	}
+	if strings.Contains(item, "://") {
+		if parsed, err := url.Parse(item); err == nil && parsed.Hostname() != "" {
+			return parsed.Hostname()
+		}
+	}
+	if host, _, err := net.SplitHostPort(item); err == nil {
+		item = host
+	}
+	return strings.Trim(item, ".")
+}
+
+func seedanceURLHostAllowed(host string, allowlist []string) bool {
+	host = strings.ToLower(strings.Trim(strings.TrimSpace(host), "."))
+	if host == "" {
+		return false
+	}
+	for _, item := range allowlist {
+		item = normalizeSeedanceAllowlistHost(item)
+		if item == "" {
+			continue
+		}
+		if strings.HasPrefix(item, "*.") {
+			suffix := strings.TrimPrefix(item, "*.")
+			if host == suffix || strings.HasSuffix(host, "."+suffix) {
+				return true
+			}
+			continue
+		}
+		if host == item {
+			return true
+		}
+	}
+	return false
 }
 
 func countSeedanceContentItems(body *requestPayload, itemType string) int {

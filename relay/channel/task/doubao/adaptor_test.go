@@ -195,6 +195,57 @@ func TestValidateSeedance2RequestAllowsPublicImageURL(t *testing.T) {
 	}
 }
 
+func TestValidateSeedance2RequestRejectsImageURLOutsideAllowlist(t *testing.T) {
+	withSeedanceFetchSetting(t)
+	t.Setenv("SEEDANCE_REMOTE_URL_ALLOWLIST", "cdn.example.com,*.trusted.example")
+	adaptor := &TaskAdaptor{}
+
+	err := adaptor.validateSeedance2Request(&relaycommon.TaskSubmitReq{
+		Model:  "doubao-seedance-2-0",
+		Prompt: "make a short video",
+		Images: []string{"https://evil.example.com/seedance/reference.png"},
+	})
+	if err == nil {
+		t.Fatalf("validateSeedance2Request() expected error")
+	}
+	if err.Code != "invalid_image_url" {
+		t.Fatalf("error code = %q", err.Code)
+	}
+}
+
+func TestValidateSeedance2RequestAllowsWildcardAllowlistedImageURL(t *testing.T) {
+	withSeedanceFetchSetting(t)
+	t.Setenv("SEEDANCE_REMOTE_URL_ALLOWLIST", "*.example.com")
+	adaptor := &TaskAdaptor{}
+
+	err := adaptor.validateSeedance2Request(&relaycommon.TaskSubmitReq{
+		Model:  "doubao-seedance-2-0",
+		Prompt: "make a short video",
+		Images: []string{"https://media.example.com/seedance/reference.png"},
+	})
+	if err != nil {
+		t.Fatalf("validateSeedance2Request() unexpected error = %v", err)
+	}
+}
+
+func TestValidateSeedance2RequestRejectsCallbackURLOutsideAllowlist(t *testing.T) {
+	withSeedanceFetchSetting(t)
+	t.Setenv("SEEDANCE_CALLBACK_URL_ALLOWLIST", "hooks.example.com")
+	adaptor := &TaskAdaptor{}
+
+	err := adaptor.validateSeedance2Request(&relaycommon.TaskSubmitReq{
+		Model:       "doubao-seedance-2-0",
+		Prompt:      "make a short video",
+		CallbackURL: "https://callback.example.com/seedance",
+	})
+	if err == nil {
+		t.Fatalf("validateSeedance2Request() expected error")
+	}
+	if err.Code != "invalid_callback_url" {
+		t.Fatalf("error code = %q", err.Code)
+	}
+}
+
 func TestEstimateBillingSeedance2Ratios(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
