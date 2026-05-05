@@ -223,10 +223,7 @@ const FooterBar = () => {
     <div className='w-full'>
       {footer ? (
         <div className='relative'>
-          <SafeHtml
-            className='custom-footer'
-            html={footer}
-          />
+          <SafeHtml className='custom-footer' html={footer} />
           <div className='absolute bottom-2 right-4 text-xs !text-semi-color-text-2 opacity-70'>
             <span>{t('设计与开发由')} </span>
             <a

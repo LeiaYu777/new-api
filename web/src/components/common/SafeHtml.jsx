@@ -12,7 +12,9 @@ const SafeHtml = ({ html, as = 'div', ...props }) => {
     () => DOMPurify.sanitize(html || '', SANITIZE_CONFIG),
     [html],
   );
-  return <Component {...props} dangerouslySetInnerHTML={{ __html: sanitizedHtml }} />;
+  return (
+    <Component {...props} dangerouslySetInnerHTML={{ __html: sanitizedHtml }} />
+  );
 };
 
 export default SafeHtml;

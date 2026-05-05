@@ -160,10 +160,7 @@ const About = () => {
               style={{ width: '100%', height: '100vh', border: 'none' }}
             />
           ) : (
-            <SafeHtml
-              style={{ fontSize: 'larger' }}
-              html={about}
-            />
+            <SafeHtml style={{ fontSize: 'larger' }} html={about} />
           )}
         </>
       )}

@@ -343,10 +343,7 @@ const Home = () => {
               className='w-full h-screen border-none'
             />
           ) : (
-            <SafeHtml
-              className='mt-[60px]'
-              html={homePageContent}
-            />
+            <SafeHtml className='mt-[60px]' html={homePageContent} />
           )}
         </div>
       )}
