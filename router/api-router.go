@@ -299,6 +299,7 @@ func SetApiRouter(router *gin.Engine) {
 		billingRoute := apiRouter.Group("/billing")
 		billingRoute.Use(middleware.AdminAuth())
 		{
+			billingRoute.GET("/summary", controller.GetBillingSummary)
 			billingRoute.GET("/export", controller.ExportBillingLogs)
 		}
 

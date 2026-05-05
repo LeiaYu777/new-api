@@ -210,6 +210,14 @@ MVP 可先用现有日志页面查询：
 GET /api/billing/export?user_id=&model_name=&start=&end=
 ```
 
+同时新增账单汇总接口：
+
+```text
+GET /api/billing/summary?user_id=&model_name=&start_timestamp=&end_timestamp=
+```
+
+返回按用户、模型、渠道、分组聚合后的 `consume_quota`、`refund_quota`、`net_quota`、`request_count`、`refund_count`、`total_tokens`，用于后台快速对账。
+
 返回 CSV 字段：
 
 ```text
@@ -395,4 +403,3 @@ curl -sS 'https://your-domain/api/log/?model_name=doubao-seedance-2-0' \
 3. `feat(billing): add seedance task fixed price fallback`
 4. `feat(billing): add billing export api`
 5. `test(seedance): cover wallet and subscription task billing`
-

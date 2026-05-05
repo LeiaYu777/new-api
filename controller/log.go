@@ -122,6 +122,24 @@ func ExportBillingLogs(c *gin.Context) {
 	}
 }
 
+func GetBillingSummary(c *gin.Context) {
+	startTimestamp, _ := strconv.ParseInt(c.Query("start_timestamp"), 10, 64)
+	endTimestamp, _ := strconv.ParseInt(c.Query("end_timestamp"), 10, 64)
+	username := c.Query("username")
+	userId, _ := strconv.Atoi(c.Query("user_id"))
+	modelName := c.Query("model_name")
+	channel, _ := strconv.Atoi(c.Query("channel"))
+	group := c.Query("group")
+	limit, _ := strconv.Atoi(c.Query("limit"))
+
+	summary, err := model.GetBillingSummary(startTimestamp, endTimestamp, modelName, username, userId, channel, group, limit)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	common.ApiSuccess(c, summary)
+}
+
 func GetLogByKey(c *gin.Context) {
 	tokenId := c.GetInt("token_id")
 	if tokenId == 0 {

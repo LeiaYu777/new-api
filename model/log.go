@@ -418,6 +418,98 @@ type Stat struct {
 	Tpm   int `json:"tpm"`
 }
 
+type BillingSummaryItem struct {
+	UserId       int    `json:"user_id"`
+	Username     string `json:"username"`
+	ModelName    string `json:"model_name"`
+	ChannelId    int    `json:"channel_id"`
+	Group        string `json:"group" gorm:"column:group_name"`
+	ConsumeQuota int64  `json:"consume_quota"`
+	RefundQuota  int64  `json:"refund_quota"`
+	NetQuota     int64  `json:"net_quota"`
+	RequestCount int64  `json:"request_count"`
+	RefundCount  int64  `json:"refund_count"`
+	TotalTokens  int64  `json:"total_tokens"`
+}
+
+type BillingSummary struct {
+	Items        []*BillingSummaryItem `json:"items"`
+	ConsumeQuota int64                 `json:"consume_quota"`
+	RefundQuota  int64                 `json:"refund_quota"`
+	NetQuota     int64                 `json:"net_quota"`
+	RequestCount int64                 `json:"request_count"`
+	RefundCount  int64                 `json:"refund_count"`
+	TotalTokens  int64                 `json:"total_tokens"`
+}
+
+func GetBillingSummary(startTimestamp int64, endTimestamp int64, modelName string, username string, userId int, channel int, group string, limit int) (*BillingSummary, error) {
+	if limit <= 0 || limit > logSearchCountLimit {
+		limit = logSearchCountLimit
+	}
+	groupExpr := "logs." + logGroupCol
+	tx := LOG_DB.Table("logs").Select(
+		"logs.user_id, logs.username, logs.model_name, logs.channel_id, "+groupExpr+" AS group_name, "+
+			"sum(case when logs.type = ? then logs.quota else 0 end) AS consume_quota, "+
+			"sum(case when logs.type = ? then logs.quota else 0 end) AS refund_quota, "+
+			"sum(case when logs.type = ? then logs.quota when logs.type = ? then -logs.quota else 0 end) AS net_quota, "+
+			"sum(case when logs.type = ? then 1 else 0 end) AS request_count, "+
+			"sum(case when logs.type = ? then 1 else 0 end) AS refund_count, "+
+			"sum(logs.prompt_tokens + logs.completion_tokens) AS total_tokens",
+		LogTypeConsume,
+		LogTypeRefund,
+		LogTypeConsume,
+		LogTypeRefund,
+		LogTypeConsume,
+		LogTypeRefund,
+	).Where("logs.type IN ?", []int{LogTypeConsume, LogTypeRefund})
+
+	if startTimestamp != 0 {
+		tx = tx.Where("logs.created_at >= ?", startTimestamp)
+	}
+	if endTimestamp != 0 {
+		tx = tx.Where("logs.created_at <= ?", endTimestamp)
+	}
+	if modelName != "" {
+		modelNamePattern, err := sanitizeLikePattern(modelName)
+		if err != nil {
+			return nil, err
+		}
+		tx = tx.Where("logs.model_name LIKE ? ESCAPE '!'", modelNamePattern)
+	}
+	if username != "" {
+		tx = tx.Where("logs.username = ?", username)
+	}
+	if userId > 0 {
+		tx = tx.Where("logs.user_id = ?", userId)
+	}
+	if channel != 0 {
+		tx = tx.Where("logs.channel_id = ?", channel)
+	}
+	if group != "" {
+		tx = tx.Where(groupExpr+" = ?", group)
+	}
+
+	items := make([]*BillingSummaryItem, 0)
+	err := tx.Group("logs.user_id, logs.username, logs.model_name, logs.channel_id, " + groupExpr).
+		Order("net_quota desc").
+		Limit(limit).
+		Scan(&items).Error
+	if err != nil {
+		return nil, err
+	}
+
+	summary := &BillingSummary{Items: items}
+	for _, item := range items {
+		summary.ConsumeQuota += item.ConsumeQuota
+		summary.RefundQuota += item.RefundQuota
+		summary.NetQuota += item.NetQuota
+		summary.RequestCount += item.RequestCount
+		summary.RefundCount += item.RefundCount
+		summary.TotalTokens += item.TotalTokens
+	}
+	return summary, nil
+}
+
 func SumUsedQuota(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string, channel int, group string) (stat Stat, err error) {
 	tx := LOG_DB.Table("logs").Select("sum(quota) quota")
 
