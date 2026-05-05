@@ -301,6 +301,7 @@ func SetApiRouter(router *gin.Engine) {
 		{
 			billingRoute.GET("/summary", controller.GetBillingSummary)
 			billingRoute.GET("/alerts", controller.GetBillingAlerts)
+			billingRoute.GET("/metrics", controller.GetBillingPrometheusMetrics)
 			billingRoute.GET("/export", controller.ExportBillingLogs)
 			billingRoute.GET("/statements", controller.GetBillingStatements)
 			billingRoute.POST("/statements/generate", controller.GenerateBillingStatements)

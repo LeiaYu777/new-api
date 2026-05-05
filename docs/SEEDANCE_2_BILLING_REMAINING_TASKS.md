@@ -34,7 +34,7 @@
 | 补齐官方多模态字段 | 基础完成，官方细节待联调 | 当前支持 prompt、image/images、reference_image_url(s)、first_frame_url、last_frame_url、reference_video_url(s)、duration、resolution、ratio、seed、audio、watermark 等字段。虚拟人像 URI、音频参考和官方最终 `content.role` 取值仍需按客户开通能力联调。 | 以真实请求样例为准校正字段映射、校验和测试。 |
 | 前端生产构建排查 | 已完成，仍有体积优化空间 | 已给 Vite 构建增加 Node heap 上限，并将 code-inspector 限制在 dev server；`npm run build` 已通过。构建仍提示部分 chunk 偏大。 | 后续可对 Mermaid、图表库、Semi UI 重页面继续做动态 import。 |
 | 全量前端 lint 收敛 | 已完成 | 已增加 `.prettierignore` 排除 `dist` 等生成物，并格式化历史源码文件；`npm run lint` 已通过。 | CI 可直接执行 `cd web && npm run lint`。 |
-| 生产监控与告警 | 基础完成 | 已新增后台账单告警接口和页面面板，覆盖退款率、任务失败率、超时任务、待处理积压、worker 滞后、余额不足和上游错误信号。 | 如需统一运维看板，可继续把 `/api/billing/alerts` 接入 Prometheus/Grafana 或企业告警系统。 |
+| 生产监控与告警 | 基础完成 | 已新增后台账单告警接口、页面面板和 Prometheus 文本导出接口 `/api/billing/metrics`，覆盖退款率、任务失败率、超时任务、待处理积压、worker 滞后、余额不足和上游错误信号。 | 预发用管理员 access token 抓取 `/api/billing/metrics?model_name=doubao-seedance-2-0%`，并接入 Prometheus/Grafana 或企业告警系统。 |
 | 严格 usage 策略决策 | 未完成 | `SEEDANCE_BILLING_STRICT_USAGE=true` 会在 usage 缺失时失败退款，不适合未验证的生产环境。 | 预发观察 usage 稳定后再决定是否开启严格模式。 |
 | 订阅套餐运营配置 | 未完成 | 订阅扣费链路已具备，但需要创建真实套餐、周期、额度和用户计费偏好。 | 在后台创建套餐，验证 `subscription_first`、`subscription_only`、钱包回退策略。 |
 
@@ -57,8 +57,9 @@
 4. 用钱包模式执行 smoke test，保存账单页和 CSV 证据。
 5. 用订阅模式执行 smoke test，验证订阅额度扣费与退款。
 6. 执行余额不足、非法参数、任务失败或超时场景。
-7. 根据真实返回校正多模态字段映射，并配置生产素材域名 allowlist 或对象存储中转。
-8. 执行 `scripts/package-seedance-delivery.sh`，生成交付包；如闭源交付，保存商业授权凭证。
+7. 配置 Prometheus/Grafana 抓取 `/api/billing/metrics`，验证退款率、失败率、worker 滞后等指标可告警。
+8. 根据真实返回校正多模态字段映射，并配置生产素材域名 allowlist 或对象存储中转。
+9. 执行 `scripts/package-seedance-delivery.sh`，生成交付包；如闭源交付，保存商业授权凭证。
 
 ## 6. 相关文档
 
@@ -68,3 +69,4 @@
 4. 真实接口 smoke test：`scripts/seedance-billing-smoke.sh`
 5. 交付清单：`compliance/SEEDANCE_2_BILLING_DELIVERY.md`
 6. 交付打包脚本：`scripts/package-seedance-delivery.sh`
+7. Prometheus 指标：`GET /api/billing/metrics?model_name=doubao-seedance-2-0%`

@@ -272,6 +272,15 @@ EXPECT_SUBMIT_FAILURE=true \
 4. `/console/billing` 汇总截图，建议同时保存按 `task_id` 精确筛选后的截图。
 5. CSV 导出文件，建议同时保存按 `task_id` 精确筛选后的 CSV。
 6. 服务端日志中与 `task_id` 对应的计费记录。
+7. Prometheus 指标抓取结果，至少包含 `newapi_billing_net_quota`、`newapi_billing_task_failure_rate`、`newapi_billing_worker_lag_seconds`。
+
+指标抓取示例：
+
+```bash
+curl -H "Authorization: $ADMIN_ACCESS_TOKEN" \
+  -H "New-Api-User: $ADMIN_USER_ID" \
+  "$BASE_URL/api/billing/metrics?model_name=doubao-seedance-2-0%"
+```
 
 ## 7. 通过标准
 

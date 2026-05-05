@@ -237,6 +237,14 @@ GET /api/billing/summary?user_id=&model_name=&start_timestamp=&end_timestamp=
 
 该页面默认按 `doubao-seedance-2-0%` 筛选 Seedance 2.0 系列模型，支持按时间、用户、模型、渠道、分组查询汇总，并可导出消费/退款/充值流水 CSV。
 
+生产监控可使用 Prometheus 文本格式接口：
+
+```text
+GET /api/billing/metrics?model_name=doubao-seedance-2-0%
+```
+
+该接口复用账单告警筛选条件和管理员鉴权，Prometheus 抓取时需要携带管理员 access token 与 `New-Api-User` 头。指标覆盖净扣费、消费/退款数量、退款率、异步任务成功/失败数、失败率、待处理任务、超时任务、worker 滞后、余额不足和上游错误信号。
+
 返回 CSV 字段：
 
 ```text
