@@ -46,7 +46,7 @@
 | 任务列表体验增强 | 未完成 | 管理员账单页能看消费，但任务列表还可以增强展示视频任务状态、结果 URL、消耗和退款。 | 在任务日志/视频任务页面增加详情抽屉。 |
 | 资金来源维度汇总 | 部分完成 | CSV 已导出 `billing_source`，但汇总 API 仍主要按用户、模型、渠道、分组聚合。 | 增加按钱包/订阅维度聚合和筛选。 |
 | 更细粒度租户分账 | 未纳入当前 MVP | 当前“分账”定义为充值、订阅、扣费、退款、后台看账，不包含代理分润、提现、税务和多方清分。 | 如客户后续需要代理/渠道分润，另立清分账本和结算流程。 |
-| AGPL 商用交付包 | 未完成，交付前处理 | 如果直接把修改版 SaaS 提供给客户或网络用户使用，需要按 AGPL 提供源码、变更记录、版权声明和构建说明；闭源交付需要商业授权。 | 交付前生成源码包、CHANGELOG、SBOM，或获取商业授权并保存凭证。 |
+| AGPL 商用交付包 | 流程完成，实际发布待执行 | 已新增 Seedance 专用交付清单和交付打包脚本；如果直接把修改版 SaaS 提供给客户或网络用户使用，需要按 AGPL 提供源码、变更记录、版权声明和构建说明；闭源交付需要商业授权。 | 发布前执行 `scripts/package-seedance-delivery.sh`，按需生成 SBOM，或获取商业授权并保存凭证。 |
 | Pull Request 和合并策略 | 未完成 | 当前改造分支未合并 main，按用户要求不影响 main。 | 验收通过后再开 PR，选择 merge/rebase/fast-forward 策略。 |
 
 ## 5. 建议下一步执行顺序
@@ -57,10 +57,12 @@
 4. 用订阅模式执行 smoke test，验证订阅额度扣费与退款。
 5. 执行余额不足、非法参数、任务失败或超时场景。
 6. 根据真实返回校正多模态字段映射，并配置生产素材域名 allowlist 或对象存储中转。
-7. 准备 AGPL 源码交付包或商业授权凭证。
+7. 执行 `scripts/package-seedance-delivery.sh`，生成交付包；如闭源交付，保存商业授权凭证。
 
 ## 6. 相关文档
 
 1. 改造方案：`docs/SEEDANCE_2_BILLING_PLAN.md`
 2. 验收手册：`docs/SEEDANCE_2_BILLING_ACCEPTANCE.md`
 3. 真实接口 smoke test：`scripts/seedance-billing-smoke.sh`
+4. 交付清单：`compliance/SEEDANCE_2_BILLING_DELIVERY.md`
+5. 交付打包脚本：`scripts/package-seedance-delivery.sh`
