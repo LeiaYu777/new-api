@@ -127,6 +127,20 @@ deploy/observability/seedance-billing-alert-rules.yml
 
 ## 6. Grafana 面板建议
 
+可直接导入样例 Dashboard：
+
+```text
+deploy/observability/seedance-billing-grafana-dashboard.json
+```
+
+导入步骤：
+
+1. 进入 Grafana `Dashboards`。
+2. 选择 `New` -> `Import`。
+3. 上传 `deploy/observability/seedance-billing-grafana-dashboard.json`。
+4. 选择 Prometheus 数据源。
+5. 导入后选择 `environment` 和 `instance` 变量。
+
 建议创建一个 `Seedance Billing` Dashboard，至少包含以下面板：
 
 | 面板 | PromQL 示例 | 说明 |

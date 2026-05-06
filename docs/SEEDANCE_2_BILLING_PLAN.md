@@ -249,6 +249,7 @@ GET /api/billing/metrics?model_name=doubao-seedance-2-0%
 
 ```text
 docs/SEEDANCE_2_MONITORING.md
+deploy/observability/seedance-billing-grafana-dashboard.json
 ```
 
 返回 CSV 字段：

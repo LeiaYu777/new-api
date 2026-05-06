@@ -50,7 +50,8 @@ git archive --format=tar.gz --prefix="new-api-${VERSION}/" --output="${SOURCE_AR
   echo "9. Monitoring runbook: docs/SEEDANCE_2_MONITORING.md"
   echo "10. Prometheus scrape example: deploy/observability/seedance-billing-prometheus.yml"
   echo "11. Prometheus alert rules: deploy/observability/seedance-billing-alert-rules.yml"
-  echo "12. SBOM: sbom.spdx.json, if generated for this release"
+  echo "12. Grafana dashboard: deploy/observability/seedance-billing-grafana-dashboard.json"
+  echo "13. SBOM: sbom.spdx.json, if generated for this release"
   echo
   echo "## Branch Change Log"
   echo

@@ -298,6 +298,7 @@ Prometheus 和 Grafana 接入可参考：
 docs/SEEDANCE_2_MONITORING.md
 deploy/observability/seedance-billing-prometheus.yml
 deploy/observability/seedance-billing-alert-rules.yml
+deploy/observability/seedance-billing-grafana-dashboard.json
 ```
 
 ## 7. 通过标准
