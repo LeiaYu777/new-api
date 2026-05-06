@@ -52,6 +52,29 @@ if ! command -v jq >/dev/null 2>&1; then
   exit 2
 fi
 
+extract_usage_total_tokens() {
+  jq -r '
+    [
+      .. | objects
+      | select(has("usage"))
+      | .usage
+      | objects
+      | (.total_tokens // .totalTokens // .total_token_count // .total // empty)
+      | select(. != null and . != "" and . != 0)
+    ][0] // empty
+  ' <<<"$1" 2>/dev/null || true
+}
+
+print_usage_recommendation() {
+  if [[ -n "${usage_total_tokens}" ]]; then
+    echo "Usage evidence: usage.total_tokens=${usage_total_tokens} observed in ${usage_source} response."
+    echo "Strict usage hint: keep collecting success/failure/timeout samples; only set USAGE_CONFIRMED=true after usage is stable across real Seedance tasks."
+  else
+    echo "Usage evidence: usage.total_tokens was not observed in submit or poll responses."
+    echo "Strict usage hint: keep SEEDANCE_BILLING_STRICT_USAGE=false; strict mode may refund successful tasks when usage is missing."
+  fi
+}
+
 submit_payload="$(
   jq -n \
     --arg model "$MODEL" \
@@ -94,6 +117,8 @@ submit_http_response="$(
 submit_status="${submit_http_response##*$'\n'}"
 submit_response="${submit_http_response%$'\n'*}"
 echo "$submit_response" | jq . || echo "$submit_response"
+usage_total_tokens="$(extract_usage_total_tokens "$submit_response")"
+usage_source="submit"
 
 if [[ "$EXPECT_SUBMIT_FAILURE" == "true" ]]; then
   if [[ "$submit_status" =~ ^[45][0-9][0-9]$ ]]; then
@@ -130,15 +155,23 @@ for ((i = 1; i <= POLL_ATTEMPTS; i++)); do
       "${BASE_URL}/v1/video/generations/${task_id}"
   )"
   status="$(echo "$poll_response" | jq -r '.status // .data.status // empty')"
+  poll_usage_total_tokens="$(extract_usage_total_tokens "$poll_response")"
+  if [[ -n "$poll_usage_total_tokens" ]]; then
+    usage_total_tokens="$poll_usage_total_tokens"
+    usage_source="poll"
+    echo "Usage observed in poll response: total_tokens=${usage_total_tokens}"
+  fi
   echo "Attempt ${i}/${POLL_ATTEMPTS}: status=${status:-unknown}"
   echo "$poll_response" | jq .
 
   case "$status" in
     completed | succeeded | SUCCESS)
+      print_usage_recommendation
       echo "Seedance task completed. Check /console/billing and ${self_billing_url} for consume/refund/net quota."
       exit 0
       ;;
     failed | FAILURE)
+      print_usage_recommendation
       echo "Seedance task failed. Check /console/billing and ${self_billing_url} for refund entry."
       exit 1
       ;;
@@ -147,5 +180,6 @@ for ((i = 1; i <= POLL_ATTEMPTS; i++)); do
   sleep "$POLL_INTERVAL"
 done
 
+print_usage_recommendation
 echo "Task did not finish within polling window. Check task logs, /console/billing, and ${self_billing_url} later."
 exit 1

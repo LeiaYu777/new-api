@@ -148,10 +148,11 @@ REFERENCE_VIDEO_URL=https://cdn.example.com/reference.mp4 \
 
 1. 返回 `task_id`。
 2. 脚本输出 `/console/my-billing?task_id=...&model_name=...` 自助账单深链，登录该用户后打开会自动按本次任务筛选。
-3. 用户余额在任务提交后发生预扣。
-4. Token 剩余额度同步预扣。
-5. 任务完成后状态为 `completed` 或 `SUCCESS`。
-6. 任务失败时状态为 `failed` 或 `FAILURE`，余额和 Token 额度退款。
+3. 脚本输出 `usage.total_tokens` 检测结果和严格 usage 模式建议。
+4. 用户余额在任务提交后发生预扣。
+5. Token 剩余额度同步预扣。
+6. 任务完成后状态为 `completed` 或 `SUCCESS`。
+7. 任务失败时状态为 `failed` 或 `FAILURE`，余额和 Token 额度退款。
 
 ### 3.3 后台看账
 
@@ -246,7 +247,13 @@ RESOLUTION=16k \
 
 ### 5.3 usage 缺失
 
-预发环境可临时开启：
+先用默认配置执行真实 smoke test，观察脚本输出：
+
+```text
+Usage evidence: usage.total_tokens=... observed in poll response.
+```
+
+如果成功、失败、超时样本都能稳定证明 usage 口径，再运行 readiness/preflight 时设置 `USAGE_CONFIRMED=true`。预发环境需要验证严格模式时，才临时开启：
 
 ```env
 SEEDANCE_BILLING_STRICT_USAGE=true
@@ -257,6 +264,7 @@ SEEDANCE_BILLING_STRICT_USAGE=true
 1. 如果上游成功但没有返回 usage，系统将任务标记为失败。
 2. 预扣额度退款。
 3. `/console/billing` 出现退款记录。
+4. 如果脚本输出 `usage.total_tokens was not observed`，生产继续保持 `SEEDANCE_BILLING_STRICT_USAGE=false`。
 
 ### 5.4 非法远程素材 URL
 

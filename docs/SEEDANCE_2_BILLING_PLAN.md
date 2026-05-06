@@ -159,6 +159,7 @@ MVP 推荐策略：
 1. 先配置固定价格 `model_price` 作为预扣费，保证客户不会免费提交高成本任务。
 2. 如果任务完成返回 `usage.total_tokens`，并且后台启用 `SEEDANCE_BILLING_BY_USAGE=true`，再按 usage 差额结算。
 3. 如果 usage 缺失或异常，保留预扣金额，不做差额调整。
+4. `scripts/seedance-billing-smoke.sh` 会自动检测提交/轮询响应中的 `usage.total_tokens`，并输出是否应继续保持非严格模式的建议。
 
 新增配置建议：
 

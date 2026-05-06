@@ -36,7 +36,7 @@
 | 前端生产构建排查 | 已完成，仍有体积优化空间 | 已给 Vite 构建增加 Node heap 上限，并将 code-inspector 限制在 dev server；`npm run build` 已通过。构建仍提示部分 chunk 偏大。 | 后续可对 Mermaid、图表库、Semi UI 重页面继续做动态 import。 |
 | 全量前端 lint 收敛 | 已完成 | 已增加 `.prettierignore` 排除 `dist` 等生成物，并格式化历史源码文件；`npm run lint` 已通过。 | CI 可直接执行 `cd web && npm run lint`。 |
 | 生产监控与告警 | 基础完成 | 已新增后台账单告警接口、页面面板、服务端 readiness API `/api/billing/readiness`、Prometheus 文本导出接口 `/api/billing/metrics`、预检脚本 readiness/指标抓取校验、Prometheus 抓取样例、告警规则、Grafana Dashboard JSON 和 Grafana 接入手册，覆盖退款率、任务失败率、超时任务、待处理积压、worker 滞后、余额不足和上游错误信号。 | 预发执行 `CHECK_BILLING_READINESS=true CHECK_BILLING_METRICS=true ADMIN_ACCESS_TOKEN=... ADMIN_USER_ID=... scripts/seedance-billing-preflight.sh`，并按 `docs/SEEDANCE_2_MONITORING.md` 接入 Prometheus/Grafana 或企业告警系统。 |
-| 严格 usage 策略决策 | 未完成 | `SEEDANCE_BILLING_STRICT_USAGE=true` 会在 usage 缺失时失败退款，不适合未验证的生产环境。 | 预发观察 usage 稳定后再决定是否开启严格模式。 |
+| 严格 usage 策略决策 | 工具增强，等待真实观察 | `SEEDANCE_BILLING_STRICT_USAGE=true` 会在 usage 缺失时失败退款，不适合未验证的生产环境；smoke test 已自动检测 `usage.total_tokens` 并输出严格模式建议。 | 预发至少保存成功、失败、超时样本的 usage 输出；稳定后再以 `USAGE_CONFIRMED=true` 跑 readiness/preflight，并决定是否开启严格模式。 |
 | 订阅套餐运营配置 | 未完成 | 订阅扣费链路已具备，但需要创建真实套餐、周期、额度和用户计费偏好。 | 在后台创建套餐，验证 `subscription_first`、`subscription_only`、钱包回退策略。 |
 
 ## 4. P2 后续产品化演进
