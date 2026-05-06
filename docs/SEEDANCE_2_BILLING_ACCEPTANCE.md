@@ -284,7 +284,7 @@ EXPECT_SUBMIT_FAILURE=true \
 2. 任务最终查询结果。
 3. 用户余额或订阅额度验收前后截图。
 4. `/console/billing` 汇总截图，建议同时保存按 `task_id` 精确筛选后的截图。
-5. 普通用户钱包/充值页“我的 Seedance 账单”截图，证明客户自己可以核对消费、退款和资金来源。
+5. 普通用户独立页面 `/console/my-billing` 或钱包/充值页“我的 Seedance 账单”截图，证明客户自己可以核对消费、退款和资金来源。
 6. CSV 导出文件，建议同时保存管理员视角和用户自助视角按 `task_id` 精确筛选后的 CSV。
 7. 服务端日志中与 `task_id` 对应的计费记录。
 8. `/api/billing/readiness` 返回结果，状态不应为 `blocked`。
@@ -355,7 +355,7 @@ deploy/observability/seedance-billing-grafana-dashboard.json
 4. 订阅扣费失败任务：订阅预扣退还。
 5. 非法参数不会发起上游调用。
 6. 管理员可通过 `/console/billing` 查到用户、模型、渠道、任务 ID、净扣费。
-7. 普通用户可通过钱包/充值页“我的 Seedance 账单”或 `/api/billing/self/*` 查到自己的消费、退款、资金来源和月结快照，且不能查看其他用户账单。
+7. 普通用户可通过 `/console/my-billing`、钱包/充值页“我的 Seedance 账单”或 `/api/billing/self/*` 查到自己的消费、退款、资金来源和月结快照，且不能查看其他用户账单。
 
 ## 8. 不通过处理
 

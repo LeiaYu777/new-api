@@ -140,15 +140,16 @@ npm run dev
 3. `/console/channel`：渠道管理（管理员）
 4. `/console/models`：模型管理（管理员）
 5. `/console/topup`：充值（用户；管理员可在相关页面查看全局记录）
-6. `/console/subscription`：订阅（用户；管理员可在后台管理计划与用户订阅）
-7. `/console/log`：日志（用户可看个人日志；管理员可看全局日志）
-8. `/console/task`：任务（用户可看个人任务；管理员可看全局任务）
-9. `/console/user`：用户管理（管理员）
-10. `/console/setting`：系统设置（Root 为主，部分项可能对 Admin 开放）
-11. `/console/personal`：个人设置（所有登录用户）
+6. `/console/my-billing`：我的账单（用户查看自己的 Seedance 消费、退款、资金来源和月结快照）
+7. `/console/subscription`：订阅（用户；管理员可在后台管理计划与用户订阅）
+8. `/console/log`：日志（用户可看个人日志；管理员可看全局日志）
+9. `/console/task`：任务（用户可看个人任务；管理员可看全局任务）
+10. `/console/user`：用户管理（管理员）
+11. `/console/setting`：系统设置（Root 为主，部分项可能对 Admin 开放）
+12. `/console/personal`：个人设置（所有登录用户）
 
 “文本替代截图”（示意）：
-1. 左侧菜单：仪表盘 | 渠道 | 模型 | 令牌 | 充值 | 订阅 | 日志 | 任务 | 用户 | 设置 | 个人中心
+1. 左侧菜单：仪表盘 | 渠道 | 模型 | 令牌 | 充值 | 我的账单 | 订阅 | 日志 | 任务 | 用户 | 设置 | 个人中心
 2. 页头区域：当前用户 | 退出登录 | 快捷入口（取决于配置）
 
 ### 3.1 登录与个人中心

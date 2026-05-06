@@ -69,7 +69,7 @@ git archive --format=tar.gz --prefix="new-api-${VERSION}/" --output="${SOURCE_AR
   echo "4. Seedance billing plan: docs/SEEDANCE_2_BILLING_PLAN.md"
   echo "5. Acceptance runbook: docs/SEEDANCE_2_BILLING_ACCEPTANCE.md"
   echo "6. Remaining tasks: docs/SEEDANCE_2_BILLING_REMAINING_TASKS.md"
-  echo "7. Self-service billing API and UI: /api/billing/self/* and /console/topup '我的 Seedance 账单'"
+  echo "7. Self-service billing API and UI: /api/billing/self/*, /console/my-billing, and /console/topup '我的 Seedance 账单'"
   echo "8. Production preflight: scripts/seedance-billing-preflight.sh"
   echo "9. Smoke test: scripts/seedance-billing-smoke.sh"
   echo "10. Evidence collector: scripts/seedance-billing-collect-evidence.sh"

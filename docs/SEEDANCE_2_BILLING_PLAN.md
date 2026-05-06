@@ -362,7 +362,7 @@ MVP 阶段可以复用现有页面：
 2. 账单汇总 API：`GET /api/billing/summary`
 3. 账单导出 API：`GET /api/billing/export`
 4. 用户自助账单只读 API：`GET /api/billing/self/summary`、`GET /api/billing/self/export`、`GET /api/billing/self/statements`
-5. 用户钱包/充值页的“我的 Seedance 账单”面板，基于 `/api/billing/self/*` 展示当前账号消费、退款、净扣费、钱包/订阅来源和月结快照，并支持导出个人流水。
+5. 用户钱包/充值页的“我的 Seedance 账单”面板和独立页面 `/console/my-billing`，基于 `/api/billing/self/*` 展示当前账号消费、退款、净扣费、钱包/订阅来源和月结快照，并支持导出个人流水。
 
 后续建议新增：
 
