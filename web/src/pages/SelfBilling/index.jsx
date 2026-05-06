@@ -17,16 +17,33 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useLocation } from 'react-router-dom';
 import SelfBillingCard from '../../components/topup/SelfBillingCard';
 
 const SelfBilling = () => {
   const { t } = useTranslation();
+  const location = useLocation();
+  const initialFilters = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return {
+      task_id: params.get('task_id') || '',
+      model_name: params.get('model_name') || '',
+      billing_source: params.get('billing_source') || '',
+      channel: params.get('channel') || '',
+      group: params.get('group') || '',
+      limit: params.get('limit') || '',
+      type: params.get('type') || params.get('logType') || '',
+      start_timestamp:
+        params.get('start_timestamp') || params.get('start') || '',
+      end_timestamp: params.get('end_timestamp') || params.get('end') || '',
+    };
+  }, [location.search]);
 
   return (
     <div className='mt-[60px] px-2'>
-      <SelfBillingCard t={t} />
+      <SelfBillingCard t={t} initialFilters={initialFilters} />
     </div>
   );
 };

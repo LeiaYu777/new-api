@@ -147,10 +147,11 @@ REFERENCE_VIDEO_URL=https://cdn.example.com/reference.mp4 \
 预期结果：
 
 1. 返回 `task_id`。
-2. 用户余额在任务提交后发生预扣。
-3. Token 剩余额度同步预扣。
-4. 任务完成后状态为 `completed` 或 `SUCCESS`。
-5. 任务失败时状态为 `failed` 或 `FAILURE`，余额和 Token 额度退款。
+2. 脚本输出 `/console/my-billing?task_id=...&model_name=...` 自助账单深链，登录该用户后打开会自动按本次任务筛选。
+3. 用户余额在任务提交后发生预扣。
+4. Token 剩余额度同步预扣。
+5. 任务完成后状态为 `completed` 或 `SUCCESS`。
+6. 任务失败时状态为 `failed` 或 `FAILURE`，余额和 Token 额度退款。
 
 ### 3.3 后台看账
 

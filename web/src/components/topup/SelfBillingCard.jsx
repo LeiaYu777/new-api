@@ -102,7 +102,40 @@ const buildParams = (values = {}) => {
 const formatCount = (value) =>
   Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
 
-const SelfBillingCard = ({ t }) => {
+const EMPTY_INITIAL_FILTERS = {};
+
+const normalizeDateRange = (filters) => {
+  const start = Number(filters.start_timestamp || 0);
+  const end = Number(filters.end_timestamp || 0);
+  if (start > 0 && end > 0) {
+    return [timestamp2string(start), timestamp2string(end)];
+  }
+  return initialDateRange();
+};
+
+const normalizePositiveInt = (value, fallback) => {
+  const parsed = Number(value || 0);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return Math.floor(parsed);
+};
+
+const normalizeInitialValues = (filters) => {
+  const modelName = trimValue(filters.model_name);
+  const logType = Number(filters.logType || filters.type || 0);
+
+  return {
+    dateRange: normalizeDateRange(filters),
+    model_name: modelName || DEFAULT_MODEL_FILTER,
+    task_id: trimValue(filters.task_id),
+    billing_source: trimValue(filters.billing_source),
+    channel: normalizePositiveInt(filters.channel, undefined),
+    group: trimValue(filters.group),
+    logType: Number.isFinite(logType) ? logType : 0,
+    limit: normalizePositiveInt(filters.limit, DEFAULT_LIMIT),
+  };
+};
+
+const SelfBillingCard = ({ t, initialFilters = EMPTY_INITIAL_FILTERS }) => {
   const [formApi, setFormApi] = useState(null);
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -119,14 +152,8 @@ const SelfBillingCard = ({ t }) => {
   const [statementsLoading, setStatementsLoading] = useState(false);
 
   const formInitValues = useMemo(
-    () => ({
-      dateRange: initialDateRange(),
-      model_name: DEFAULT_MODEL_FILTER,
-      billing_source: '',
-      logType: 0,
-      limit: DEFAULT_LIMIT,
-    }),
-    [],
+    () => normalizeInitialValues(initialFilters),
+    [initialFilters],
   );
 
   const getCurrentValues = useCallback(() => {
@@ -202,12 +229,13 @@ const SelfBillingCard = ({ t }) => {
 
   useEffect(() => {
     if (formApi) {
+      formApi.setValues(formInitValues);
       handleSearch(formInitValues);
     }
   }, [formApi, formInitValues, handleSearch]);
 
   const resetFilters = () => {
-    formApi?.reset();
+    formApi?.setValues(formInitValues);
     setTimeout(() => handleSearch(formInitValues), 0);
   };
 

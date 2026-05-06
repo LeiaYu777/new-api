@@ -115,7 +115,14 @@ if [[ -z "$task_id" || "$task_id" == "null" ]]; then
   exit 1
 fi
 
+urlencode() {
+  jq -rn --arg value "$1" '$value | @uri'
+}
+
+self_billing_url="${BASE_URL%/}/console/my-billing?task_id=$(urlencode "${task_id}")&model_name=$(urlencode "${MODEL}")"
+
 echo "Polling task: ${task_id}"
+echo "Self-service billing deep link: ${self_billing_url}"
 for ((i = 1; i <= POLL_ATTEMPTS; i++)); do
   poll_response="$(
     curl -fsS \
@@ -128,11 +135,11 @@ for ((i = 1; i <= POLL_ATTEMPTS; i++)); do
 
   case "$status" in
     completed | succeeded | SUCCESS)
-      echo "Seedance task completed. Check /console/billing for consume/refund/net quota."
+      echo "Seedance task completed. Check /console/billing and ${self_billing_url} for consume/refund/net quota."
       exit 0
       ;;
     failed | FAILURE)
-      echo "Seedance task failed. Check /console/billing for refund entry."
+      echo "Seedance task failed. Check /console/billing and ${self_billing_url} for refund entry."
       exit 1
       ;;
   esac
@@ -140,5 +147,5 @@ for ((i = 1; i <= POLL_ATTEMPTS; i++)); do
   sleep "$POLL_INTERVAL"
 done
 
-echo "Task did not finish within polling window. Check task logs and /console/billing later."
+echo "Task did not finish within polling window. Check task logs, /console/billing, and ${self_billing_url} later."
 exit 1
