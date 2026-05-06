@@ -297,6 +297,14 @@ scripts/seedance-billing-collect-evidence.sh
 
 脚本会在 `compliance/evidence/seedance-<timestamp>/` 下保存账单汇总、告警、月结快照、CSV 流水、Prometheus 指标和任务查询结果。脚本不会把管理员 token 或用户 API key 写入证据目录。
 
+归档完成后执行离线校验：
+
+```bash
+scripts/seedance-billing-verify-evidence.sh compliance/evidence/seedance-20260506T120000Z
+```
+
+校验脚本会检查必需文件、HTTP 状态、JSON 格式、CSV 对账字段、Prometheus 指标名，以及 manifest 中 `task_id` 与 CSV 流水是否匹配。
+
 指标抓取示例：
 
 ```bash

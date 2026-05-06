@@ -258,6 +258,12 @@ deploy/observability/seedance-billing-grafana-dashboard.json
 scripts/seedance-billing-collect-evidence.sh
 ```
 
+归档后用离线校验脚本确认必需文件、HTTP 状态、JSON 格式、CSV 对账字段、Prometheus 指标名和 `task_id` 对账痕迹：
+
+```text
+scripts/seedance-billing-verify-evidence.sh compliance/evidence/seedance-<timestamp>
+```
+
 返回 CSV 字段：
 
 ```text
