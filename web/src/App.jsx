@@ -21,20 +21,23 @@ import React, { lazy, Suspense, useContext, useMemo } from 'react';
 import { Route, Routes, useLocation, useParams } from 'react-router-dom';
 import Loading from './components/common/ui/Loading';
 import { AuthRedirect, PrivateRoute, AdminRoute } from './helpers';
-import RegisterForm from './components/auth/RegisterForm';
-import LoginForm from './components/auth/LoginForm';
-import NotFound from './pages/NotFound';
-import Forbidden from './pages/Forbidden';
 import { StatusContext } from './context/Status';
-
-import PasswordResetForm from './components/auth/PasswordResetForm';
-import PasswordResetConfirm from './components/auth/PasswordResetConfirm';
-import OAuth2Callback from './components/auth/OAuth2Callback';
 import SetupCheck from './components/layout/SetupCheck';
 
 const Home = lazy(() => import('./pages/Home'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const About = lazy(() => import('./pages/About'));
+const Forbidden = lazy(() => import('./pages/Forbidden'));
+const LoginForm = lazy(() => import('./components/auth/LoginForm'));
+const NotFound = lazy(() => import('./pages/NotFound'));
+const OAuth2Callback = lazy(() => import('./components/auth/OAuth2Callback'));
+const PasswordResetConfirm = lazy(
+  () => import('./components/auth/PasswordResetConfirm'),
+);
+const PasswordResetForm = lazy(
+  () => import('./components/auth/PasswordResetForm'),
+);
+const RegisterForm = lazy(() => import('./components/auth/RegisterForm'));
 const UserAgreement = lazy(() => import('./pages/UserAgreement'));
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 const Billing = lazy(() => import('./pages/Billing'));
@@ -110,7 +113,14 @@ function App() {
             </Suspense>
           }
         />
-        <Route path='/forbidden' element={<Forbidden />} />
+        <Route
+          path='/forbidden'
+          element={
+            <Suspense fallback={<Loading></Loading>} key={location.pathname}>
+              <Forbidden />
+            </Suspense>
+          }
+        />
         <Route
           path='/console/models'
           element={
@@ -419,7 +429,14 @@ function App() {
             </PrivateRoute>
           }
         />
-        <Route path='*' element={<NotFound />} />
+        <Route
+          path='*'
+          element={
+            <Suspense fallback={<Loading></Loading>} key={location.pathname}>
+              <NotFound />
+            </Suspense>
+          }
+        />
       </Routes>
     </SetupCheck>
   );
