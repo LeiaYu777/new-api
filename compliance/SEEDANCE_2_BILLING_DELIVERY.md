@@ -15,8 +15,9 @@ Required artifacts:
 3. Change log with commit IDs.
 4. Build and deployment instructions.
 5. SBOM for the delivered release.
-6. Seedance 2.0 billing plan, acceptance runbook, monitoring runbook, evidence collector, and evidence verifier.
-7. Remaining tasks or known limitations.
+6. `SHA256SUMS` for the release archive, manifest, SBOM, and placeholder files.
+7. Seedance 2.0 billing plan, acceptance runbook, monitoring runbook, evidence collector, and evidence verifier.
+8. Remaining tasks or known limitations.
 
 ### Closed-Source Commercial Delivery
 
@@ -71,6 +72,11 @@ compliance/releases/<version>/
 11. `deploy/observability/seedance-billing-alert-rules.yml`
 12. `deploy/observability/seedance-billing-grafana-dashboard.json`
 13. `.env.example`
+14. User self-service billing capabilities:
+    - API: `GET /api/billing/self/summary`
+    - API: `GET /api/billing/self/export`
+    - API: `GET /api/billing/self/statements`
+    - UI: `/console/topup` -> `我的 Seedance 账单`
 
 ## 4. Release Gate
 
@@ -83,7 +89,8 @@ Do not deliver to production customers until these items are complete:
 5. Task polling worker is enabled and refund behavior is verified.
 6. Material URL allowlist or object storage relay is configured.
 7. Customer price configuration is approved and `SEEDANCE_PRICE_CONFIRMED=true` is set when the runtime gate is enabled.
-8. AGPL source package or commercial authorization record is available.
+8. Ordinary users can see only their own Seedance billing rows through `/api/billing/self/*` and the wallet/top-up page.
+9. AGPL source package or commercial authorization record is available.
 
 ## 5. Evidence To Archive
 
@@ -94,7 +101,8 @@ Do not deliver to production customers until these items are complete:
 5. Evidence verifier terminal output.
 6. `/api/billing/readiness` output with status not blocked.
 7. Billing console screenshots.
-8. Exported billing CSV.
-9. Customer price configuration screenshots.
-10. Prometheus/Grafana target and dashboard screenshots.
-11. Commercial authorization proof, if using closed-source delivery.
+8. User wallet/top-up page `我的 Seedance 账单` screenshots.
+9. Admin exported billing CSV and self-service exported billing CSV.
+10. Customer price configuration screenshots.
+11. Prometheus/Grafana target and dashboard screenshots.
+12. Commercial authorization proof, if using closed-source delivery.

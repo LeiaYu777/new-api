@@ -26,6 +26,30 @@ RELEASE_DIR="${OUTPUT_DIR}/${VERSION}"
 
 mkdir -p "${RELEASE_DIR}"
 
+write_sha256_line() {
+  local file="$1"
+  local relative_file
+  relative_file="$(basename "${file}")"
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "${file}" | awk -v name="${relative_file}" '{print $1 "  " name}'
+  elif command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "${file}" | awk -v name="${relative_file}" '{print $1 "  " name}'
+  elif command -v openssl >/dev/null 2>&1; then
+    openssl dgst -sha256 "${file}" | awk -v name="${relative_file}" '{print $NF "  " name}'
+  else
+    echo "sha256sum, shasum, or openssl is required to generate checksums." >&2
+    return 1
+  fi
+}
+
+generate_release_checksums() {
+  local checksum_file="${RELEASE_DIR}/SHA256SUMS"
+  : >"${checksum_file}"
+  while IFS= read -r file; do
+    write_sha256_line "${file}" >>"${checksum_file}"
+  done < <(find "${RELEASE_DIR}" -maxdepth 1 -type f ! -name 'SHA256SUMS' | sort)
+}
+
 SOURCE_ARCHIVE="${RELEASE_DIR}/new-api-${VERSION}-source.tar.gz"
 git archive --format=tar.gz --prefix="new-api-${VERSION}/" --output="${SOURCE_ARCHIVE}" HEAD
 
@@ -45,15 +69,23 @@ git archive --format=tar.gz --prefix="new-api-${VERSION}/" --output="${SOURCE_AR
   echo "4. Seedance billing plan: docs/SEEDANCE_2_BILLING_PLAN.md"
   echo "5. Acceptance runbook: docs/SEEDANCE_2_BILLING_ACCEPTANCE.md"
   echo "6. Remaining tasks: docs/SEEDANCE_2_BILLING_REMAINING_TASKS.md"
-  echo "7. Production preflight: scripts/seedance-billing-preflight.sh"
-  echo "8. Smoke test: scripts/seedance-billing-smoke.sh"
-  echo "9. Evidence collector: scripts/seedance-billing-collect-evidence.sh"
-  echo "10. Evidence verifier: scripts/seedance-billing-verify-evidence.sh"
-  echo "11. Monitoring runbook: docs/SEEDANCE_2_MONITORING.md"
-  echo "12. Prometheus scrape example: deploy/observability/seedance-billing-prometheus.yml"
-  echo "13. Prometheus alert rules: deploy/observability/seedance-billing-alert-rules.yml"
-  echo "14. Grafana dashboard: deploy/observability/seedance-billing-grafana-dashboard.json"
-  echo "15. SBOM: sbom.spdx.json, if generated for this release"
+  echo "7. Self-service billing API and UI: /api/billing/self/* and /console/topup '我的 Seedance 账单'"
+  echo "8. Production preflight: scripts/seedance-billing-preflight.sh"
+  echo "9. Smoke test: scripts/seedance-billing-smoke.sh"
+  echo "10. Evidence collector: scripts/seedance-billing-collect-evidence.sh"
+  echo "11. Evidence verifier: scripts/seedance-billing-verify-evidence.sh"
+  echo "12. Monitoring runbook: docs/SEEDANCE_2_MONITORING.md"
+  echo "13. Prometheus scrape example: deploy/observability/seedance-billing-prometheus.yml"
+  echo "14. Prometheus alert rules: deploy/observability/seedance-billing-alert-rules.yml"
+  echo "15. Grafana dashboard: deploy/observability/seedance-billing-grafana-dashboard.json"
+  echo "16. Checksums: SHA256SUMS"
+  echo "17. SBOM: sbom.spdx.json, if generated for this release"
+  echo
+  echo "## Acceptance Evidence Notes"
+  echo
+  echo "- Collect admin billing evidence with ADMIN_ACCESS_TOKEN and ADMIN_USER_ID."
+  echo "- Collect customer self-service billing evidence with SELF_ACCESS_TOKEN and SELF_USER_ID."
+  echo "- Verify self-service evidence with scripts/seedance-billing-verify-evidence.sh; it checks that self billing rows only contain self_user_id."
   echo
   echo "## Branch Change Log"
   echo
@@ -80,4 +112,7 @@ or:
 EOF
 fi
 
+generate_release_checksums
+
 echo "Delivery package generated at ${RELEASE_DIR}"
+echo "Checksums written to ${RELEASE_DIR}/SHA256SUMS"
