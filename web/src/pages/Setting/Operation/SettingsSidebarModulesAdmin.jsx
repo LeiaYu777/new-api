@@ -57,6 +57,7 @@ export default function SettingsSidebarModulesAdmin(props) {
     personal: {
       enabled: true,
       topup: true,
+      myBilling: true,
       personal: true,
     },
     admin: {
@@ -119,6 +120,7 @@ export default function SettingsSidebarModulesAdmin(props) {
       personal: {
         enabled: true,
         topup: true,
+        myBilling: true,
         personal: true,
       },
       admin: {
@@ -224,6 +226,11 @@ export default function SettingsSidebarModulesAdmin(props) {
       description: t('用户个人功能'),
       modules: [
         { key: 'topup', title: t('钱包管理'), description: t('余额充值管理') },
+        {
+          key: 'myBilling',
+          title: t('我的账单'),
+          description: t('查看个人 Seedance 消费、退款和月结快照'),
+        },
         {
           key: 'personal',
           title: t('个人设置'),

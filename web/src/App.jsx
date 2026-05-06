@@ -35,6 +35,7 @@ import Channel from './pages/Channel';
 import Token from './pages/Token';
 import Redemption from './pages/Redemption';
 import TopUp from './pages/TopUp';
+import SelfBilling from './pages/SelfBilling';
 import Log from './pages/Log';
 import Billing from './pages/Billing';
 import Chat from './pages/Chat';
@@ -282,6 +283,16 @@ function App() {
             <PrivateRoute>
               <Suspense fallback={<Loading></Loading>} key={location.pathname}>
                 <TopUp />
+              </Suspense>
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path='/console/my-billing'
+          element={
+            <PrivateRoute>
+              <Suspense fallback={<Loading></Loading>} key={location.pathname}>
+                <SelfBilling />
               </Suspense>
             </PrivateRoute>
           }

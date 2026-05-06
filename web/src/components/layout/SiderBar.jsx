@@ -37,6 +37,7 @@ const routerMap = {
   token: '/console/token',
   redemption: '/console/redemption',
   topup: '/console/topup',
+  myBilling: '/console/my-billing',
   user: '/console/user',
   subscription: '/console/subscription',
   log: '/console/log',
@@ -129,6 +130,11 @@ const SiderBar = ({ onNavigate = () => {} }) => {
         text: t('钱包管理'),
         itemKey: 'topup',
         to: '/topup',
+      },
+      {
+        text: t('我的账单'),
+        itemKey: 'myBilling',
+        to: '/my-billing',
       },
       {
         text: t('个人设置'),
