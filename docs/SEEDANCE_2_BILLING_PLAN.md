@@ -252,6 +252,12 @@ docs/SEEDANCE_2_MONITORING.md
 deploy/observability/seedance-billing-grafana-dashboard.json
 ```
 
+真实验收后可用证据归档脚本保存任务结果、账单汇总、CSV 和指标输出：
+
+```text
+scripts/seedance-billing-collect-evidence.sh
+```
+
 返回 CSV 字段：
 
 ```text

@@ -284,6 +284,19 @@ EXPECT_SUBMIT_FAILURE=true \
 6. 服务端日志中与 `task_id` 对应的计费记录。
 7. Prometheus 指标抓取结果，至少包含 `newapi_billing_net_quota`、`newapi_billing_task_failure_rate`、`newapi_billing_worker_lag_seconds`。
 
+可使用证据归档脚本统一保存验收材料：
+
+```bash
+BASE_URL=https://your-domain \
+ADMIN_ACCESS_TOKEN=sk-admin-access-token \
+ADMIN_USER_ID=1 \
+API_KEY=sk-user-token \
+TASK_ID=task_xxx \
+scripts/seedance-billing-collect-evidence.sh
+```
+
+脚本会在 `compliance/evidence/seedance-<timestamp>/` 下保存账单汇总、告警、月结快照、CSV 流水、Prometheus 指标和任务查询结果。脚本不会把管理员 token 或用户 API key 写入证据目录。
+
 指标抓取示例：
 
 ```bash

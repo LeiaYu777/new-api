@@ -15,7 +15,7 @@ Required artifacts:
 3. Change log with commit IDs.
 4. Build and deployment instructions.
 5. SBOM for the delivered release.
-6. Seedance 2.0 billing plan and acceptance runbook.
+6. Seedance 2.0 billing plan, acceptance runbook, monitoring runbook, and evidence collector.
 7. Remaining tasks or known limitations.
 
 ### Closed-Source Commercial Delivery
@@ -61,9 +61,15 @@ compliance/releases/<version>/
 1. `docs/SEEDANCE_2_BILLING_PLAN.md`
 2. `docs/SEEDANCE_2_BILLING_ACCEPTANCE.md`
 3. `docs/SEEDANCE_2_BILLING_REMAINING_TASKS.md`
-4. `scripts/seedance-billing-smoke.sh`
-5. `scripts/package-seedance-delivery.sh`
-6. `.env.example`
+4. `docs/SEEDANCE_2_MONITORING.md`
+5. `scripts/seedance-billing-smoke.sh`
+6. `scripts/seedance-billing-preflight.sh`
+7. `scripts/seedance-billing-collect-evidence.sh`
+8. `scripts/package-seedance-delivery.sh`
+9. `deploy/observability/seedance-billing-prometheus.yml`
+10. `deploy/observability/seedance-billing-alert-rules.yml`
+11. `deploy/observability/seedance-billing-grafana-dashboard.json`
+12. `.env.example`
 
 ## 4. Release Gate
 
@@ -82,7 +88,9 @@ Do not deliver to production customers until these items are complete:
 1. Delivery package path and checksum.
 2. SBOM path and checksum.
 3. Smoke test terminal output.
-4. Billing console screenshots.
-5. Exported billing CSV.
-6. Customer price configuration screenshots.
-7. Commercial authorization proof, if using closed-source delivery.
+4. Evidence collector output under `compliance/evidence/seedance-<timestamp>/`.
+5. Billing console screenshots.
+6. Exported billing CSV.
+7. Customer price configuration screenshots.
+8. Prometheus/Grafana target and dashboard screenshots.
+9. Commercial authorization proof, if using closed-source delivery.
