@@ -57,5 +57,14 @@ export const normalizeLanguage = (language) => {
     (supportedLanguage) => supportedLanguage.toLowerCase() === lower,
   );
 
-  return matchedLanguage || normalized;
+  if (matchedLanguage) {
+    return matchedLanguage;
+  }
+
+  const baseLanguage = lower.split('-')[0];
+  const matchedBaseLanguage = supportedLanguages.find(
+    (supportedLanguage) => supportedLanguage.toLowerCase() === baseLanguage,
+  );
+
+  return matchedBaseLanguage || normalized;
 };
