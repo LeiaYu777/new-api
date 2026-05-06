@@ -21,7 +21,7 @@
 | 火山方舟真实接口联调 | 未完成，等待客户 API Key 和渠道信息 | 目前代码支持提交与轮询链路，但还没有用客户真实 Seedance 2.0 账号完成端到端调用。 | 通过 `scripts/seedance-billing-smoke.sh` 提交任务，拿到真实 `task_id`、最终状态和结果 URL。 |
 | 确认官方模型 ID | 未完成，等待控制台确认 | 当前已内置常用 Seedance 2.0 命名，并支持模型映射兜底。最终生产模型名必须以火山方舟控制台开通后的真实 ID 为准。 | 后台渠道模型映射中可用真实模型 ID 成功提交任务。 |
 | 确认官方返回结构和 usage 字段 | 未完成，等待真实任务返回 | 代码已支持固定价格兜底和可选 usage 差额结算，但是否稳定返回 `usage.total_tokens` 需要实测。 | 至少完成成功、失败、超时三类任务，确认 usage 缺失时不会多扣费。 |
-| 配置真实价格 | 未完成，需业务定价 | 当前代码提供默认固定价格和倍率入口，但生产价格需要按客户成本、毛利和计费口径配置。 | 模型价格不为 0，成功任务净扣费等于业务定价，失败任务净扣费为 0。 |
+| 配置真实价格 | 基础保护完成，仍需业务定价 | 当前代码提供默认固定价格和倍率入口，并新增 `SEEDANCE_REQUIRE_PRICE_CONFIRMATION` / `SEEDANCE_PRICE_CONFIRMED` 生产价格确认闸门；真实价格仍需按客户成本、毛利和计费口径配置。 | 模型价格不为 0，`SEEDANCE_PRICE_CONFIRMED=true` 后成功任务净扣费等于业务定价，失败任务净扣费为 0；未确认价格时 Seedance 请求被本地阻断。 |
 | 验证充值入口 | 未完成，需客户支付方式 | 代码复用现有充值订单和管理员补单能力，但客户实际支付渠道需要单独验收。 | 用户充值到账后余额增加，充值流水导出包含 `content` 并可被财务核对。 |
 | 验证任务轮询 worker | 未完成，需部署环境 | Seedance 是异步任务，生产必须启用任务轮询，否则失败退款和最终结算不会及时发生。 | `UPDATE_TASK=true` 的 worker 正常运行，任务最终状态会更新并触发结算或退款。 |
 | 完整验收手册执行 | 未完成 | 需要按 `docs/SEEDANCE_2_BILLING_ACCEPTANCE.md` 跑钱包、订阅、余额不足、非法参数、usage 缺失场景；代码已提供 `scripts/seedance-billing-collect-evidence.sh` 归档接口证据，并提供 `scripts/seedance-billing-verify-evidence.sh` 做离线完整性校验。 | 验收证据齐全，包括请求、任务结果、余额前后、账单页截图、CSV 和 Prometheus 指标，且 verify 脚本通过。 |
@@ -52,7 +52,7 @@
 ## 5. 建议下一步执行顺序
 
 1. 在预发环境配置客户真实火山方舟 Seedance 2.0 渠道、模型映射和 API Key。
-2. 配置真实固定价格，先不开启严格 usage 校验。
+2. 配置真实固定价格，设置 `SEEDANCE_REQUIRE_PRICE_CONFIRMATION=true`，审批通过后再设置 `SEEDANCE_PRICE_CONFIRMED=true`，先不开启严格 usage 校验。
 3. 执行 `scripts/seedance-billing-preflight.sh`，检查 worker、usage 策略、素材域名 allowlist、月结、告警阈值和可选 Prometheus 指标抓取。
 4. 用钱包模式执行 smoke test，并用 `scripts/seedance-billing-collect-evidence.sh` 保存账单页配套接口证据和 CSV，再执行 `scripts/seedance-billing-verify-evidence.sh`。
 5. 用订阅模式执行 smoke test，验证订阅额度扣费与退款，并归档和校验证据。

@@ -15,6 +15,8 @@ set -euo pipefail
 #   MODEL=doubao-seedance-2-0       Model name used for warnings.
 #   REQUIRE_LOCAL_WORKER=false      Treat local worker config problems as failures.
 #   USAGE_CONFIRMED=false           Mark upstream usage.total_tokens as verified.
+#   SEEDANCE_REQUIRE_PRICE_CONFIRMATION=false  Runtime gate requiring explicit price signoff.
+#   SEEDANCE_PRICE_CONFIRMED=false             Set true after customer price is configured.
 #   FAIL_ON_WARNINGS=false          Exit non-zero when warnings exist.
 #   CHECK_HTTP=false                Check BASE_URL /api/status reachability.
 #   CHECK_BILLING_METRICS=false     Check BASE_URL /api/billing/metrics with admin credentials.
@@ -212,6 +214,16 @@ if csv_contains_seedance "${TASK_PRICE_PATCH:-}"; then
   pass "TASK_PRICE_PATCH contains a Seedance model pattern for per-call billing."
 else
   warn "TASK_PRICE_PATCH does not contain Seedance. Ensure model_price or model_ratio is configured in the admin pricing settings for ${MODEL}."
+fi
+
+if is_true "${SEEDANCE_REQUIRE_PRICE_CONFIRMATION:-false}"; then
+  if is_true "${SEEDANCE_PRICE_CONFIRMED:-false}"; then
+    pass "SEEDANCE_REQUIRE_PRICE_CONFIRMATION=true and SEEDANCE_PRICE_CONFIRMED=true."
+  else
+    fail "SEEDANCE_REQUIRE_PRICE_CONFIRMATION=true but SEEDANCE_PRICE_CONFIRMED is not true. Seedance tasks will be blocked until the customer price is confirmed."
+  fi
+else
+  warn "SEEDANCE_REQUIRE_PRICE_CONFIRMATION=false. Production should enable it and set SEEDANCE_PRICE_CONFIRMED=true after configuring customer pricing."
 fi
 
 print_section "Seedance request limits"

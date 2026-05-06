@@ -170,6 +170,9 @@ func RelayTaskSubmit(c *gin.Context, info *relaycommon.RelayInfo) (*TaskSubmitRe
 	if err := helper.ModelMappedHelper(c, info, nil); err != nil {
 		return nil, service.TaskErrorWrapperLocal(err, "model_mapping_failed", http.StatusBadRequest)
 	}
+	if taskErr := validateSeedanceTaskPriceConfirmation(info.OriginModelName, info.UpstreamModelName); taskErr != nil {
+		return nil, taskErr
+	}
 
 	// 3. 预生成公开 task ID（仅首次）
 	if info.PublicTaskID == "" {
@@ -276,6 +279,31 @@ func recalcQuotaFromRatios(info *relaycommon.RelayInfo, ratios map[string]float6
 		}
 	}
 	return int(result)
+}
+
+func validateSeedanceTaskPriceConfirmation(modelNames ...string) *dto.TaskError {
+	if !common.GetEnvOrDefaultBool("SEEDANCE_REQUIRE_PRICE_CONFIRMATION", false) {
+		return nil
+	}
+	for _, modelName := range modelNames {
+		if !isSeedance2TaskModel(modelName) {
+			continue
+		}
+		if common.GetEnvOrDefaultBool("SEEDANCE_PRICE_CONFIRMED", false) {
+			return nil
+		}
+		return service.TaskErrorWrapperLocal(
+			fmt.Errorf("seedance production price is not confirmed; configure customer model_price/model_ratio and set SEEDANCE_PRICE_CONFIRMED=true"),
+			"seedance_price_not_confirmed",
+			http.StatusServiceUnavailable,
+		)
+	}
+	return nil
+}
+
+func isSeedance2TaskModel(modelName string) bool {
+	modelName = strings.ToLower(strings.TrimSpace(modelName))
+	return strings.Contains(modelName, "seedance-2") || strings.Contains(modelName, "seedance2")
 }
 
 var fetchRespBuilders = map[int]func(c *gin.Context) (respBody []byte, taskResp *dto.TaskError){

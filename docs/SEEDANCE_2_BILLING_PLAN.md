@@ -164,10 +164,11 @@ MVP 推荐策略：
 
 ```text
 SEEDANCE_BILLING_BY_USAGE=true
-SEEDANCE_DEFAULT_RESOLUTION=1080p
-SEEDANCE_DEFAULT_DURATION=5
-SEEDANCE_DEFAULT_PRECONSUME_QUOTA=100000
 SEEDANCE_BILLING_STRICT_USAGE=false
+SEEDANCE_REQUIRE_PRICE_CONFIRMATION=true
+SEEDANCE_PRICE_CONFIRMED=true
+SEEDANCE_DEFAULT_DURATION=5
+SEEDANCE_MAX_DURATION=60
 ```
 
 后台配置：
@@ -175,6 +176,7 @@ SEEDANCE_BILLING_STRICT_USAGE=false
 1. `model_price["doubao-seedance-2-0"] = 固定单次价格`
 2. 或 `model_ratio["doubao-seedance-2-0"] = 官方 token 单价换算后的倍率`
 3. `group_ratio["vip"]`、`group_ratio["enterprise"]` 用于给不同客户不同售价
+4. 生产开启 `SEEDANCE_REQUIRE_PRICE_CONFIRMATION=true` 后，必须在价格配置和审批完成后设置 `SEEDANCE_PRICE_CONFIRMED=true`，否则请求会在本地返回 `seedance_price_not_confirmed`，不会提交上游任务。
 
 ### 5.4 预扣与结算链路
 

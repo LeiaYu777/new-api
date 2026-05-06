@@ -152,7 +152,7 @@ func (a *TaskAdaptor) BuildRequestBody(c *gin.Context, info *relaycommon.RelayIn
 		info.UpstreamModelName = body.Model
 	}
 	if IsSeedance2Model(body.Model) {
-		if taskErr := a.validateSeedance2Request(&req); taskErr != nil {
+		if taskErr := a.validateSeedance2RequestForModel(&req, body.Model); taskErr != nil {
 			return nil, taskErr.Error
 		}
 	}
@@ -453,6 +453,10 @@ func (a *TaskAdaptor) ParseTaskResult(respBody []byte) (*relaycommon.TaskInfo, e
 }
 
 func (a *TaskAdaptor) validateSeedance2Request(req *relaycommon.TaskSubmitReq) *dto.TaskError {
+	return a.validateSeedance2RequestForModel(req, req.Model)
+}
+
+func (a *TaskAdaptor) validateSeedance2RequestForModel(req *relaycommon.TaskSubmitReq, modelName string) *dto.TaskError {
 	for key := range req.Metadata {
 		if !seedanceAllowedMetadata[key] {
 			return service.TaskErrorWrapperLocal(fmt.Errorf("unsupported seedance metadata field: %s", key), "invalid_request", http.StatusBadRequest)
@@ -461,6 +465,12 @@ func (a *TaskAdaptor) validateSeedance2Request(req *relaycommon.TaskSubmitReq) *
 	body, err := a.convertToRequestPayload(req)
 	if err != nil {
 		return service.TaskErrorWrapperLocal(err, "invalid_request", http.StatusBadRequest)
+	}
+	if modelName == "" {
+		modelName = body.Model
+	}
+	if taskErr := validateSeedance2PriceConfirmation(modelName); taskErr != nil {
+		return taskErr
 	}
 	maxDuration := common.GetEnvOrDefault("SEEDANCE_MAX_DURATION", 60)
 	if maxDuration <= 0 {
@@ -497,6 +507,23 @@ func (a *TaskAdaptor) validateSeedance2Request(req *relaycommon.TaskSubmitReq) *
 		return taskErr
 	}
 	return nil
+}
+
+func validateSeedance2PriceConfirmation(modelName string) *dto.TaskError {
+	if !IsSeedance2Model(modelName) {
+		return nil
+	}
+	if !common.GetEnvOrDefaultBool("SEEDANCE_REQUIRE_PRICE_CONFIRMATION", false) {
+		return nil
+	}
+	if common.GetEnvOrDefaultBool("SEEDANCE_PRICE_CONFIRMED", false) {
+		return nil
+	}
+	return service.TaskErrorWrapperLocal(
+		fmt.Errorf("seedance production price is not confirmed; configure customer model_price/model_ratio and set SEEDANCE_PRICE_CONFIRMED=true"),
+		"seedance_price_not_confirmed",
+		http.StatusServiceUnavailable,
+	)
 }
 
 func validateSeedance2ExternalURLs(body *requestPayload) *dto.TaskError {

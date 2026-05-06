@@ -19,6 +19,8 @@
 ```env
 SEEDANCE_BILLING_BY_USAGE=true
 SEEDANCE_BILLING_STRICT_USAGE=false
+SEEDANCE_REQUIRE_PRICE_CONFIRMATION=true
+SEEDANCE_PRICE_CONFIRMED=true
 SEEDANCE_DEFAULT_DURATION=5
 SEEDANCE_MAX_DURATION=60
 SEEDANCE_MAX_IMAGES=8
@@ -83,6 +85,7 @@ scripts/seedance-billing-preflight.sh
 1. 预发环境可以启用 `SEEDANCE_BILLING_BY_USAGE=true` 观察 usage。
 2. 生产首日建议保留固定价格兜底。
 3. 如果上游 usage 经常缺失，不建议打开 `SEEDANCE_BILLING_STRICT_USAGE=true`，否则成功视频任务可能因为 usage 缺失被判失败并退款。
+4. 生产建议开启 `SEEDANCE_REQUIRE_PRICE_CONFIRMATION=true`，并在客户价格配置和业务审批完成后设置 `SEEDANCE_PRICE_CONFIRMED=true`；否则 Seedance 2.0 任务会被本地拒绝，避免未定价成本外流。
 
 ### 2.4 远程素材 URL 安全配置
 

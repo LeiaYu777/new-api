@@ -1,6 +1,7 @@
 package doubao
 
 import (
+	"net/http"
 	"net/http/httptest"
 	"testing"
 
@@ -58,6 +59,57 @@ func TestValidateSeedance2RequestRejectsUnknownMetadata(t *testing.T) {
 		t.Fatalf("validateSeedance2Request() expected error")
 	}
 	if err.Code != "invalid_request" {
+		t.Fatalf("error code = %q", err.Code)
+	}
+}
+
+func TestValidateSeedance2RequestRejectsUnconfirmedProductionPrice(t *testing.T) {
+	t.Setenv("SEEDANCE_REQUIRE_PRICE_CONFIRMATION", "true")
+	t.Setenv("SEEDANCE_PRICE_CONFIRMED", "false")
+	adaptor := &TaskAdaptor{}
+
+	err := adaptor.validateSeedance2Request(&relaycommon.TaskSubmitReq{
+		Model:  "doubao-seedance-2-0",
+		Prompt: "make a short video",
+	})
+	if err == nil {
+		t.Fatalf("validateSeedance2Request() expected error")
+	}
+	if err.Code != "seedance_price_not_confirmed" {
+		t.Fatalf("error code = %q", err.Code)
+	}
+	if err.StatusCode != http.StatusServiceUnavailable {
+		t.Fatalf("status code = %d", err.StatusCode)
+	}
+}
+
+func TestValidateSeedance2RequestAllowsConfirmedProductionPrice(t *testing.T) {
+	t.Setenv("SEEDANCE_REQUIRE_PRICE_CONFIRMATION", "true")
+	t.Setenv("SEEDANCE_PRICE_CONFIRMED", "true")
+	adaptor := &TaskAdaptor{}
+
+	err := adaptor.validateSeedance2Request(&relaycommon.TaskSubmitReq{
+		Model:  "doubao-seedance-2-0",
+		Prompt: "make a short video",
+	})
+	if err != nil {
+		t.Fatalf("validateSeedance2Request() unexpected error = %v", err)
+	}
+}
+
+func TestValidateSeedance2RequestRejectsMappedSeedanceWhenPriceUnconfirmed(t *testing.T) {
+	t.Setenv("SEEDANCE_REQUIRE_PRICE_CONFIRMATION", "true")
+	t.Setenv("SEEDANCE_PRICE_CONFIRMED", "false")
+	adaptor := &TaskAdaptor{}
+
+	err := adaptor.validateSeedance2RequestForModel(&relaycommon.TaskSubmitReq{
+		Model:  "customer-seedance-alias",
+		Prompt: "make a short video",
+	}, "doubao-seedance-2-0")
+	if err == nil {
+		t.Fatalf("validateSeedance2RequestForModel() expected error")
+	}
+	if err.Code != "seedance_price_not_confirmed" {
 		t.Fatalf("error code = %q", err.Code)
 	}
 }

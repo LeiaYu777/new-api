@@ -82,7 +82,8 @@ Do not deliver to production customers until these items are complete:
 4. Payment/recharge path is verified in the customer's payment provider.
 5. Task polling worker is enabled and refund behavior is verified.
 6. Material URL allowlist or object storage relay is configured.
-7. AGPL source package or commercial authorization record is available.
+7. Customer price configuration is approved and `SEEDANCE_PRICE_CONFIRMED=true` is set when the runtime gate is enabled.
+8. AGPL source package or commercial authorization record is available.
 
 ## 5. Evidence To Archive
 
