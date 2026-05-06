@@ -1,0 +1,42 @@
+# Example Prometheus configuration for NewAPI Seedance 2.0 billing metrics.
+#
+# Replace:
+# - new-api.example.com with your NewAPI host, without scheme.
+# - /etc/prometheus/secrets/newapi_admin_access_token with a file containing
+#   the admin access token value, without the "Bearer " prefix.
+# - /etc/prometheus/secrets/newapi_admin_user_id with a file containing the
+#   numeric admin user id required by NewAPI's New-Api-User header.
+#
+# Keep this endpoint private. It uses admin credentials and should only be
+# reachable from your monitoring network.
+
+global:
+  scrape_interval: 30s
+  evaluation_interval: 30s
+
+rule_files:
+  - /etc/prometheus/rules/seedance-billing-alert-rules.yml
+
+scrape_configs:
+  - job_name: newapi-seedance-billing
+    scheme: https
+    metrics_path: /api/billing/metrics
+    scrape_interval: 30s
+    scrape_timeout: 10s
+    params:
+      model_name:
+        - doubao-seedance-2-0%
+    authorization:
+      type: Bearer
+      credentials_file: /etc/prometheus/secrets/newapi_admin_access_token
+    http_headers:
+      New-Api-User:
+        files:
+          - /etc/prometheus/secrets/newapi_admin_user_id
+    static_configs:
+      - targets:
+          - new-api.example.com
+        labels:
+          service: new-api
+          feature: seedance-billing
+          environment: production

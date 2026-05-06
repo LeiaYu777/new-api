@@ -1,0 +1,101 @@
+groups:
+  - name: newapi-seedance-billing
+    interval: 30s
+    rules:
+      - alert: NewAPISeedanceRefundRateHigh
+        expr: |
+          newapi_billing_refund_rate{feature="seedance-billing"} > 0.2
+          and
+          newapi_billing_request_count{feature="seedance-billing"} > 5
+        for: 10m
+        labels:
+          severity: warning
+          service: new-api
+          feature: seedance-billing
+        annotations:
+          summary: Seedance refund rate is high
+          description: "Refund rate is {{ $value }} for {{ $labels.instance }}. Check upstream failures, strict usage policy, and task refund logs."
+
+      - alert: NewAPISeedanceTaskFailureRateHigh
+        expr: |
+          newapi_billing_task_failure_rate{feature="seedance-billing"} > 0.3
+          and
+          (
+            newapi_billing_task_success_count{feature="seedance-billing"}
+            +
+            newapi_billing_task_failure_count{feature="seedance-billing"}
+          ) > 5
+        for: 10m
+        labels:
+          severity: warning
+          service: new-api
+          feature: seedance-billing
+        annotations:
+          summary: Seedance task failure rate is high
+          description: "Task failure rate is {{ $value }} for {{ $labels.instance }}. Check model id, API key, asset URL allowlist, and upstream limits."
+
+      - alert: NewAPISeedanceTimedOutTasks
+        expr: newapi_billing_timed_out_task_count{feature="seedance-billing"} > 0
+        for: 5m
+        labels:
+          severity: critical
+          service: new-api
+          feature: seedance-billing
+        annotations:
+          summary: Seedance tasks are timing out
+          description: "{{ $value }} Seedance task(s) exceeded the configured timeout. Check UPDATE_TASK workers and task polling logs."
+
+      - alert: NewAPISeedanceWorkerLagHigh
+        expr: newapi_billing_worker_lag_seconds{feature="seedance-billing"} > 900
+        for: 5m
+        labels:
+          severity: critical
+          service: new-api
+          feature: seedance-billing
+        annotations:
+          summary: Seedance worker lag is high
+          description: "Oldest non-final Seedance task has not been updated for {{ $value }} seconds. Check worker replicas, DB pool, and upstream fetch API."
+
+      - alert: NewAPISeedancePendingTasksHigh
+        expr: newapi_billing_pending_task_count{feature="seedance-billing"} > 20
+        for: 15m
+        labels:
+          severity: warning
+          service: new-api
+          feature: seedance-billing
+        annotations:
+          summary: Seedance pending task backlog is high
+          description: "{{ $value }} Seedance task(s) are still pending. Consider scaling workers or checking upstream queueing."
+
+      - alert: NewAPISeedanceUpstreamErrors
+        expr: newapi_billing_upstream_error_count{feature="seedance-billing"} > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: new-api
+          feature: seedance-billing
+        annotations:
+          summary: Seedance upstream errors detected
+          description: "{{ $value }} upstream error signal(s) detected. Check VolcEngine channel health, API key permissions, model mapping, and request payloads."
+
+      - alert: NewAPISeedanceInsufficientBalance
+        expr: newapi_billing_insufficient_balance_count{feature="seedance-billing"} > 0
+        for: 5m
+        labels:
+          severity: warning
+          service: new-api
+          feature: seedance-billing
+        annotations:
+          summary: Seedance balance or subscription quota shortage detected
+          description: "{{ $value }} insufficient balance signal(s) detected. Confirm recharge, subscription quota, and billing preference settings."
+
+      - alert: NewAPISeedanceNetQuotaNegative
+        expr: newapi_billing_net_quota{feature="seedance-billing"} < 0
+        for: 5m
+        labels:
+          severity: warning
+          service: new-api
+          feature: seedance-billing
+        annotations:
+          summary: Seedance net quota is negative
+          description: "Net quota is {{ $value }} for {{ $labels.instance }}. Check duplicate refunds or mismatched billing source filters."

@@ -245,6 +245,12 @@ GET /api/billing/metrics?model_name=doubao-seedance-2-0%
 
 该接口复用账单告警筛选条件和管理员鉴权，Prometheus 抓取时需要携带管理员 access token 与 `New-Api-User` 头。指标覆盖净扣费、消费/退款数量、退款率、异步任务成功/失败数、失败率、待处理任务、超时任务、worker 滞后、余额不足和上游错误信号。
 
+完整监控接入步骤见：
+
+```text
+docs/SEEDANCE_2_MONITORING.md
+```
+
 返回 CSV 字段：
 
 ```text

@@ -47,7 +47,10 @@ git archive --format=tar.gz --prefix="new-api-${VERSION}/" --output="${SOURCE_AR
   echo "6. Remaining tasks: docs/SEEDANCE_2_BILLING_REMAINING_TASKS.md"
   echo "7. Production preflight: scripts/seedance-billing-preflight.sh"
   echo "8. Smoke test: scripts/seedance-billing-smoke.sh"
-  echo "9. SBOM: sbom.spdx.json, if generated for this release"
+  echo "9. Monitoring runbook: docs/SEEDANCE_2_MONITORING.md"
+  echo "10. Prometheus scrape example: deploy/observability/seedance-billing-prometheus.yml"
+  echo "11. Prometheus alert rules: deploy/observability/seedance-billing-alert-rules.yml"
+  echo "12. SBOM: sbom.spdx.json, if generated for this release"
   echo
   echo "## Branch Change Log"
   echo

@@ -34,7 +34,7 @@
 | 补齐官方多模态字段 | 基础完成，官方细节待联调 | 当前支持 prompt、image/images、reference_image_url(s)、first_frame_url、last_frame_url、reference_video_url(s)、duration、resolution、ratio、seed、audio、watermark 等字段。虚拟人像 URI、音频参考和官方最终 `content.role` 取值仍需按客户开通能力联调。 | 以真实请求样例为准校正字段映射、校验和测试。 |
 | 前端生产构建排查 | 已完成，仍有体积优化空间 | 已给 Vite 构建增加 Node heap 上限，并将 code-inspector 限制在 dev server；`npm run build` 已通过。构建仍提示部分 chunk 偏大。 | 后续可对 Mermaid、图表库、Semi UI 重页面继续做动态 import。 |
 | 全量前端 lint 收敛 | 已完成 | 已增加 `.prettierignore` 排除 `dist` 等生成物，并格式化历史源码文件；`npm run lint` 已通过。 | CI 可直接执行 `cd web && npm run lint`。 |
-| 生产监控与告警 | 基础完成 | 已新增后台账单告警接口、页面面板、Prometheus 文本导出接口 `/api/billing/metrics` 和预检脚本指标抓取校验，覆盖退款率、任务失败率、超时任务、待处理积压、worker 滞后、余额不足和上游错误信号。 | 预发执行 `CHECK_BILLING_METRICS=true ADMIN_ACCESS_TOKEN=... ADMIN_USER_ID=... scripts/seedance-billing-preflight.sh`，并接入 Prometheus/Grafana 或企业告警系统。 |
+| 生产监控与告警 | 基础完成 | 已新增后台账单告警接口、页面面板、Prometheus 文本导出接口 `/api/billing/metrics`、预检脚本指标抓取校验、Prometheus 抓取样例、告警规则和 Grafana 接入手册，覆盖退款率、任务失败率、超时任务、待处理积压、worker 滞后、余额不足和上游错误信号。 | 预发执行 `CHECK_BILLING_METRICS=true ADMIN_ACCESS_TOKEN=... ADMIN_USER_ID=... scripts/seedance-billing-preflight.sh`，并按 `docs/SEEDANCE_2_MONITORING.md` 接入 Prometheus/Grafana 或企业告警系统。 |
 | 严格 usage 策略决策 | 未完成 | `SEEDANCE_BILLING_STRICT_USAGE=true` 会在 usage 缺失时失败退款，不适合未验证的生产环境。 | 预发观察 usage 稳定后再决定是否开启严格模式。 |
 | 订阅套餐运营配置 | 未完成 | 订阅扣费链路已具备，但需要创建真实套餐、周期、额度和用户计费偏好。 | 在后台创建套餐，验证 `subscription_first`、`subscription_only`、钱包回退策略。 |
 
@@ -70,3 +70,6 @@
 5. 交付清单：`compliance/SEEDANCE_2_BILLING_DELIVERY.md`
 6. 交付打包脚本：`scripts/package-seedance-delivery.sh`
 7. Prometheus 指标：`GET /api/billing/metrics?model_name=doubao-seedance-2-0%`
+8. 监控接入手册：`docs/SEEDANCE_2_MONITORING.md`
+9. Prometheus 抓取样例：`deploy/observability/seedance-billing-prometheus.yml`
+10. Prometheus 告警规则：`deploy/observability/seedance-billing-alert-rules.yml`

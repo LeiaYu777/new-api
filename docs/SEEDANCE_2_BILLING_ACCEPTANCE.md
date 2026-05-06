@@ -292,6 +292,14 @@ curl -H "Authorization: $ADMIN_ACCESS_TOKEN" \
   "$BASE_URL/api/billing/metrics?model_name=doubao-seedance-2-0%"
 ```
 
+Prometheus 和 Grafana 接入可参考：
+
+```text
+docs/SEEDANCE_2_MONITORING.md
+deploy/observability/seedance-billing-prometheus.yml
+deploy/observability/seedance-billing-alert-rules.yml
+```
+
 ## 7. 通过标准
 
 该功能可以交付给客户的最低通过标准：
