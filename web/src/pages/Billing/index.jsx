@@ -110,12 +110,45 @@ const formatPercent = (value) => `${(Number(value || 0) * 100).toFixed(1)}%`;
 const alertColor = (severity) =>
   severity === 'critical' ? 'red' : severity === 'warning' ? 'orange' : 'green';
 
+const readinessStatusColor = (status) => {
+  switch (status) {
+    case 'ready':
+      return 'green';
+    case 'warning':
+      return 'orange';
+    case 'blocked':
+      return 'red';
+    default:
+      return 'grey';
+  }
+};
+
+const readinessCheckColor = (status) => {
+  switch (status) {
+    case 'pass':
+      return 'green';
+    case 'warn':
+      return 'orange';
+    case 'fail':
+      return 'red';
+    case 'info':
+      return 'blue';
+    default:
+      return 'grey';
+  }
+};
+
 const formatAlertValue = (alert, field) => {
   const value = Number(alert?.[field] || 0);
   if (String(alert?.key || '').includes('rate')) {
     return `${value.toFixed(1)}%`;
   }
   return formatCount(value);
+};
+
+const normalizeReadinessModel = (modelName) => {
+  const model = trimValue(modelName) || DEFAULT_MODEL_FILTER;
+  return model.endsWith('%') ? model.slice(0, -1) : model;
 };
 
 const BillingPage = () => {
@@ -146,6 +179,8 @@ const BillingPage = () => {
     insufficient_balance_count: 0,
   });
   const [alertsLoading, setAlertsLoading] = useState(false);
+  const [readiness, setReadiness] = useState(null);
+  const [readinessLoading, setReadinessLoading] = useState(false);
 
   const formInitValues = useMemo(
     () => ({
@@ -251,15 +286,40 @@ const BillingPage = () => {
     [getCurrentValues, t],
   );
 
+  const loadReadiness = useCallback(
+    async (values) => {
+      setReadinessLoading(true);
+      try {
+        const currentValues = values || getCurrentValues();
+        const res = await API.get('/api/billing/readiness', {
+          params: {
+            model_name: normalizeReadinessModel(currentValues.model_name),
+          },
+        });
+        if (res.data.success) {
+          setReadiness(res.data.data || null);
+        } else {
+          showError(res.data.message || t('Seedance readiness 查询失败'));
+        }
+      } catch (error) {
+        showError(error);
+      } finally {
+        setReadinessLoading(false);
+      }
+    },
+    [getCurrentValues, t],
+  );
+
   const handleSearch = useCallback(
     async (values) => {
       await Promise.all([
         loadSummary(values),
         loadStatements(values),
         loadAlerts(values),
+        loadReadiness(values),
       ]);
     },
-    [loadSummary, loadStatements, loadAlerts],
+    [loadSummary, loadStatements, loadAlerts, loadReadiness],
   );
 
   useEffect(() => {
@@ -582,6 +642,17 @@ const BillingPage = () => {
     },
   ];
 
+  const readinessConfig = readiness?.config || {};
+  const readinessChecks = Array.isArray(readiness?.checks)
+    ? readiness.checks
+    : [];
+  const blockingChecks = readinessChecks.filter(
+    (check) => check.blocking || check.status === 'fail',
+  );
+  const warningChecks = readinessChecks.filter(
+    (check) => check.status === 'warn',
+  );
+
   const searchArea = (
     <Form
       initValues={formInitValues}
@@ -792,6 +863,155 @@ const BillingPage = () => {
           pagination={false}
         />
       </CardPro>
+      <Card className='!rounded-xl mt-3' bordered>
+        <div className='flex flex-col md:flex-row md:items-start justify-between gap-3 mb-3'>
+          <div className='flex flex-col gap-1'>
+            <div className='flex flex-wrap items-center gap-2'>
+              <Title heading={6} className='!mb-0'>
+                {t('Seedance 上线 Readiness')}
+              </Title>
+              <Tag color={readinessStatusColor(readiness?.status)}>
+                {readiness?.status ? t(readiness.status) : t('未加载')}
+              </Tag>
+              {readiness?.production_ready ? (
+                <Tag color='green'>{t('生产可发布')}</Tag>
+              ) : !readiness ? (
+                <Tag color='grey'>{t('等待数据')}</Tag>
+              ) : (
+                <Tag color='orange'>{t('需复核')}</Tag>
+              )}
+            </div>
+            <Text type='secondary'>
+              {t(
+                '汇总价格配置、确认闸门、任务 worker、usage 策略、素材白名单和月结配置，帮助判断 Seedance 2.0 是否可以进入客户生产验收。',
+              )}
+            </Text>
+          </div>
+          <Button
+            type='tertiary'
+            icon={<IconRefresh />}
+            loading={readinessLoading}
+            onClick={() => loadReadiness(getCurrentValues())}
+            size='small'
+          >
+            {t('刷新 Readiness')}
+          </Button>
+        </div>
+        <div className='grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-2 mb-3'>
+          <Card className='!rounded-xl' bordered>
+            <div className='flex flex-col gap-1'>
+              <Text type='secondary' size='small'>
+                {t('模型')}
+              </Text>
+              <Text copyable strong>
+                {readiness?.model_name ||
+                  normalizeReadinessModel(DEFAULT_MODEL_FILTER)}
+              </Text>
+              <Text type='tertiary' size='small'>
+                {t('Readiness 使用精确模型名，不使用 % 通配')}
+              </Text>
+            </div>
+          </Card>
+          <Card className='!rounded-xl' bordered>
+            <div className='flex flex-col gap-1'>
+              <Text type='secondary' size='small'>
+                {t('价格确认')}
+              </Text>
+              {readiness ? (
+                <div className='flex flex-wrap gap-1'>
+                  <Tag
+                    color={
+                      readinessConfig.seedance_require_price_confirmation
+                        ? 'green'
+                        : 'orange'
+                    }
+                  >
+                    {readinessConfig.seedance_require_price_confirmation
+                      ? t('闸门已开启')
+                      : t('闸门未开启')}
+                  </Tag>
+                  <Tag
+                    color={
+                      readinessConfig.seedance_price_confirmed ? 'green' : 'red'
+                    }
+                  >
+                    {readinessConfig.seedance_price_confirmed
+                      ? t('价格已确认')
+                      : t('价格未确认')}
+                  </Tag>
+                </div>
+              ) : (
+                <Tag color='grey'>{t('等待 readiness 数据')}</Tag>
+              )}
+              <Text type='tertiary' size='small'>
+                {t('未确认时生产会阻断 Seedance 请求')}
+              </Text>
+            </div>
+          </Card>
+          <Card className='!rounded-xl' bordered>
+            <div className='flex flex-col gap-1'>
+              <Text type='secondary' size='small'>
+                {t('任务 Worker')}
+              </Text>
+              {readiness ? (
+                <>
+                  <Tag color={readinessConfig.update_task ? 'green' : 'red'}>
+                    {readinessConfig.update_task
+                      ? t('UPDATE_TASK=true')
+                      : t('UPDATE_TASK=false')}
+                  </Tag>
+                  <Text type='tertiary' size='small'>
+                    {t('NODE_TYPE')}: {readinessConfig.node_type || 'master'}
+                  </Text>
+                </>
+              ) : (
+                <Tag color='grey'>{t('等待 readiness 数据')}</Tag>
+              )}
+            </div>
+          </Card>
+          <Card className='!rounded-xl' bordered>
+            <div className='flex flex-col gap-1'>
+              <Text type='secondary' size='small'>
+                {t('阻断 / 警告')}
+              </Text>
+              <Text strong>
+                {readiness
+                  ? `${formatCount(blockingChecks.length)} / ${formatCount(warningChecks.length)}`
+                  : '- / -'}
+              </Text>
+              <Text type='tertiary' size='small'>
+                {t('阻断项必须清零后再交付生产')}
+              </Text>
+            </div>
+          </Card>
+        </div>
+        {readinessChecks.length > 0 ? (
+          <div className='grid grid-cols-1 lg:grid-cols-2 gap-2'>
+            {readinessChecks.map((check) => (
+              <div
+                key={check.key}
+                className='flex flex-col gap-1 border border-solid border-[var(--semi-color-border)] rounded-lg p-3'
+              >
+                <div className='flex flex-wrap items-center gap-2'>
+                  <Tag color={readinessCheckColor(check.status)}>
+                    {t(check.status)}
+                  </Tag>
+                  {check.blocking ? <Tag color='red'>{t('阻断')}</Tag> : null}
+                  <Text strong>{check.key}</Text>
+                </div>
+                <Text>{t(check.message)}</Text>
+                {check.recommendation ? (
+                  <Text type='secondary' size='small'>
+                    {t(check.recommendation)}
+                  </Text>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <Empty description={t('暂无 readiness 数据')} />
+        )}
+      </Card>
       <Card className='!rounded-xl mt-3' bordered>
         <div className='flex flex-col md:flex-row md:items-center justify-between gap-2 mb-3'>
           <div>
