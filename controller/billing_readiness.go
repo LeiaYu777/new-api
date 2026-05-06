@@ -33,6 +33,7 @@ func GetSeedanceBillingReadiness(c *gin.Context) {
 		ModelName:                modelName,
 		UsageConfirmed:           boolQueryOrEnv(c, "usage_confirmed", "USAGE_CONFIRMED", false),
 		RequireLocalWorker:       boolQueryOrEnv(c, "require_local_worker", "REQUIRE_LOCAL_WORKER", false),
+		RequireRemoteAllowlist:   boolQueryOrEnv(c, "require_remote_allowlist", "REQUIRE_REMOTE_ALLOWLIST", false),
 		RequireCallbackAllowlist: boolQueryOrEnv(c, "require_callback_allowlist", "REQUIRE_CALLBACK_ALLOWLIST", false),
 	})
 	common.ApiSuccess(c, readiness)

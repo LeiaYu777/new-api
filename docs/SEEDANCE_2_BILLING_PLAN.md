@@ -264,7 +264,7 @@ GET /api/billing/metrics?model_name=doubao-seedance-2-0%
 GET /api/billing/readiness?model_name=doubao-seedance-2-0
 ```
 
-该接口需要管理员鉴权，返回 `status=ready|warning|blocked`、`ready`、`production_ready` 和逐项检查结果，覆盖价格配置/确认闸门、任务 worker、usage 策略、超时退款、素材 allowlist、月结快照等上线前风险。交付验收中 `status` 不应为 `blocked`。
+该接口需要管理员鉴权，返回 `status=ready|warning|blocked`、`ready`、`production_ready` 和逐项检查结果，覆盖价格配置/确认闸门、任务 worker、usage 策略、超时退款、素材 allowlist、月结快照等上线前风险。交付验收中 `status` 不应为 `blocked`。生产放量前可传 `require_remote_allowlist=true`，启用回调时可传 `require_callback_allowlist=true`，让缺失白名单从 warning 升级为 blocked。
 
 完整监控接入步骤见：
 

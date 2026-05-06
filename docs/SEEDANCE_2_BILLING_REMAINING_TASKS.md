@@ -31,7 +31,7 @@
 
 | 任务 | 状态 | 说明 | 建议处理 |
 | --- | --- | --- | --- |
-| 远程图片和视频 URI 安全策略 | 基础完成，生产域名待配置 | 代码已接入系统 Fetch/SSRF 策略，会拒绝私有 IP、危险端口、非 HTTP(S) 协议和带账号密码的 URL；并新增 `SEEDANCE_REMOTE_URL_ALLOWLIST`、`SEEDANCE_CALLBACK_URL_ALLOWLIST` 作为 Seedance 专属域名白名单。 | 在预发配置客户素材/CDN/回调域名 allowlist，验证非法 URL 会被 400 拦截；生产优先使用对象存储中转或安全代理拉取。 |
+| 远程图片和视频 URI 安全策略 | 工具增强，生产域名待配置 | 代码已接入系统 Fetch/SSRF 策略，会拒绝私有 IP、危险端口、非 HTTP(S) 协议和带账号密码的 URL；并新增 `SEEDANCE_REMOTE_URL_ALLOWLIST`、`SEEDANCE_CALLBACK_URL_ALLOWLIST` 作为 Seedance 专属域名白名单。readiness/preflight 支持 `REQUIRE_REMOTE_ALLOWLIST=true` / `REQUIRE_CALLBACK_ALLOWLIST=true`，可把缺失白名单升级为阻断错误。 | 在预发配置客户素材/CDN/回调域名 allowlist，验证非法 URL 会被 400 拦截；生产优先使用对象存储中转或安全代理拉取，并开启 allowlist 硬闸门。 |
 | 补齐官方多模态字段 | 基础完成，官方细节待联调 | 当前支持 prompt、image/images、reference_image_url(s)、first_frame_url、last_frame_url、reference_video_url(s)、duration、resolution、ratio、seed、audio、watermark 等字段。虚拟人像 URI、音频参考和官方最终 `content.role` 取值仍需按客户开通能力联调。 | 以真实请求样例为准校正字段映射、校验和测试。 |
 | 前端生产构建排查 | 已完成，仍有体积优化空间 | 已给 Vite 构建增加 Node heap 上限，并将 code-inspector 限制在 dev server；`npm run build` 已通过。构建仍提示部分 chunk 偏大。 | 后续可对 Mermaid、图表库、Semi UI 重页面继续做动态 import。 |
 | 全量前端 lint 收敛 | 已完成 | 已增加 `.prettierignore` 排除 `dist` 等生成物，并格式化历史源码文件；`npm run lint` 已通过。 | CI 可直接执行 `cd web && npm run lint`。 |

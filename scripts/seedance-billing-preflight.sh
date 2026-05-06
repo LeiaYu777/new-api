@@ -14,6 +14,8 @@ set -euo pipefail
 #   CONFIG_FILE=.env                Env file to load.
 #   MODEL=doubao-seedance-2-0       Model name used for warnings.
 #   REQUIRE_LOCAL_WORKER=false      Treat local worker config problems as failures.
+#   REQUIRE_REMOTE_ALLOWLIST=false  Treat missing SEEDANCE_REMOTE_URL_ALLOWLIST as a failure.
+#   REQUIRE_CALLBACK_ALLOWLIST=false Treat missing SEEDANCE_CALLBACK_URL_ALLOWLIST as a failure.
 #   USAGE_CONFIRMED=false           Mark upstream usage.total_tokens as verified.
 #   SEEDANCE_REQUIRE_PRICE_CONFIRMATION=false  Runtime gate requiring explicit price signoff.
 #   SEEDANCE_PRICE_CONFIRMED=false             Set true after customer price is configured.
@@ -118,9 +120,14 @@ validate_domain_allowlist() {
   local name="$1"
   local value="$2"
   local required_hint="$3"
+  local fail_when_empty="${4:-false}"
 
   if [[ -z "${value}" ]]; then
-    warn "${name} is empty. ${required_hint}"
+    if is_true "${fail_when_empty}"; then
+      fail "${name} is empty. ${required_hint}"
+    else
+      warn "${name} is empty. ${required_hint}"
+    fi
     return
   fi
 
@@ -159,6 +166,8 @@ print_section() {
 MODEL="${MODEL:-doubao-seedance-2-0}"
 BASE_URL="${BASE_URL:-http://localhost:3000}"
 REQUIRE_LOCAL_WORKER="${REQUIRE_LOCAL_WORKER:-false}"
+REQUIRE_REMOTE_ALLOWLIST="${REQUIRE_REMOTE_ALLOWLIST:-false}"
+REQUIRE_CALLBACK_ALLOWLIST="${REQUIRE_CALLBACK_ALLOWLIST:-false}"
 USAGE_CONFIRMED="${USAGE_CONFIRMED:-false}"
 FAIL_ON_WARNINGS="${FAIL_ON_WARNINGS:-false}"
 CHECK_HTTP="${CHECK_HTTP:-false}"
@@ -235,9 +244,9 @@ check_int_range "SEEDANCE_MAX_IMAGES" "${SEEDANCE_MAX_IMAGES:-}" "8" 1 32
 check_int_range "SEEDANCE_MAX_REFERENCE_VIDEOS" "${SEEDANCE_MAX_REFERENCE_VIDEOS:-}" "3" 0 10
 
 print_section "Remote URL controls"
-validate_domain_allowlist "SEEDANCE_REMOTE_URL_ALLOWLIST" "${SEEDANCE_REMOTE_URL_ALLOWLIST:-}" "Production should restrict image/video assets to customer OSS/CDN domains."
-if [[ -n "${CALLBACK_URL:-}" ]]; then
-  validate_domain_allowlist "SEEDANCE_CALLBACK_URL_ALLOWLIST" "${SEEDANCE_CALLBACK_URL_ALLOWLIST:-}" "CALLBACK_URL is set, so callback domains should be restricted."
+validate_domain_allowlist "SEEDANCE_REMOTE_URL_ALLOWLIST" "${SEEDANCE_REMOTE_URL_ALLOWLIST:-}" "Production should restrict image/video assets to customer OSS/CDN domains." "${REQUIRE_REMOTE_ALLOWLIST}"
+if [[ -n "${CALLBACK_URL:-}" ]] || is_true "${REQUIRE_CALLBACK_ALLOWLIST}"; then
+  validate_domain_allowlist "SEEDANCE_CALLBACK_URL_ALLOWLIST" "${SEEDANCE_CALLBACK_URL_ALLOWLIST:-}" "CALLBACK_URL is set or callback allowlist is required, so callback domains should be restricted." "${REQUIRE_CALLBACK_ALLOWLIST}"
 else
   if [[ -n "${SEEDANCE_CALLBACK_URL_ALLOWLIST:-}" ]]; then
     pass "SEEDANCE_CALLBACK_URL_ALLOWLIST is configured."
@@ -309,6 +318,8 @@ if is_true "${CHECK_BILLING_READINESS}"; then
       --data-urlencode "model_name=${MODEL}" \
       --data-urlencode "usage_confirmed=${USAGE_CONFIRMED}" \
       --data-urlencode "require_local_worker=${REQUIRE_LOCAL_WORKER}" \
+      --data-urlencode "require_remote_allowlist=${REQUIRE_REMOTE_ALLOWLIST}" \
+      --data-urlencode "require_callback_allowlist=${REQUIRE_CALLBACK_ALLOWLIST}" \
       -o "${readiness_file}" \
       -w '%{http_code}' \
       "${readiness_url}" || true)"

@@ -50,13 +50,14 @@ REQUIRE_LOCAL_WORKER=true scripts/seedance-billing-preflight.sh
 ```bash
 CHECK_BILLING_READINESS=true \
 CHECK_BILLING_METRICS=true \
+REQUIRE_REMOTE_ALLOWLIST=true \
 BASE_URL=https://your-domain \
 ADMIN_ACCESS_TOKEN=sk-admin-access-token \
 ADMIN_USER_ID=1 \
 scripts/seedance-billing-preflight.sh
 ```
 
-预检脚本不会提交真实任务，只检查 worker、usage 策略、素材域名 allowlist、月结、告警阈值，以及可选的服务端 readiness 和指标抓取等上线前配置。
+预检脚本不会提交真实任务，只检查 worker、usage 策略、素材域名 allowlist、月结、告警阈值，以及可选的服务端 readiness 和指标抓取等上线前配置。生产放量前建议设置 `REQUIRE_REMOTE_ALLOWLIST=true`；如果启用 `callback_url`，同时设置 `REQUIRE_CALLBACK_ALLOWLIST=true`。
 
 ### 2.2 渠道配置
 

@@ -24,6 +24,7 @@ type SeedanceBillingReadinessOptions struct {
 	ModelName                string
 	UsageConfirmed           bool
 	RequireLocalWorker       bool
+	RequireRemoteAllowlist   bool
 	RequireCallbackAllowlist bool
 }
 
@@ -69,6 +70,7 @@ func BuildSeedanceBillingReadiness(opts SeedanceBillingReadinessOptions) Seedanc
 		"billing_statement_auto_enabled":        common.GetEnvOrDefaultBool("BILLING_STATEMENT_AUTO_ENABLED", false),
 		"usage_confirmed":                       opts.UsageConfirmed,
 		"require_local_worker":                  opts.RequireLocalWorker,
+		"require_remote_allowlist":              opts.RequireRemoteAllowlist,
 		"require_callback_allowlist":            opts.RequireCallbackAllowlist,
 	}
 
@@ -93,8 +95,9 @@ func BuildSeedanceBillingReadiness(opts SeedanceBillingReadinessOptions) Seedanc
 	checks = append(checks, seedanceIntRangeCheck("seedance_max_duration", "SEEDANCE_MAX_DURATION", 60, 1, 600, "最大时长过大会放大单次任务成本。"))
 	checks = append(checks, seedanceIntRangeCheck("seedance_max_images", "SEEDANCE_MAX_IMAGES", 8, 1, 32, "限制参考图片数量可控制请求体体积和上游成本。"))
 	checks = append(checks, seedanceIntRangeCheck("seedance_max_reference_videos", "SEEDANCE_MAX_REFERENCE_VIDEOS", 3, 0, 10, "限制参考视频数量可降低素材拉取和任务失败风险。"))
-	checks = append(checks, seedanceAllowlistCheck("seedance_remote_url_allowlist", "SEEDANCE_REMOTE_URL_ALLOWLIST", true, "生产应限制图片/视频素材到客户 OSS/CDN 域名。"))
-	checks = append(checks, seedanceAllowlistCheck("seedance_callback_url_allowlist", "SEEDANCE_CALLBACK_URL_ALLOWLIST", opts.RequireCallbackAllowlist || strings.TrimSpace(common.GetEnvOrDefaultString("CALLBACK_URL", "")) != "", "启用 callback_url 时应限制回调域名。"))
+	callbackConfigured := strings.TrimSpace(common.GetEnvOrDefaultString("CALLBACK_URL", "")) != ""
+	checks = append(checks, seedanceAllowlistCheck("seedance_remote_url_allowlist", "SEEDANCE_REMOTE_URL_ALLOWLIST", true, opts.RequireRemoteAllowlist, "生产应限制图片/视频素材到客户 OSS/CDN 域名。"))
+	checks = append(checks, seedanceAllowlistCheck("seedance_callback_url_allowlist", "SEEDANCE_CALLBACK_URL_ALLOWLIST", opts.RequireCallbackAllowlist || callbackConfigured, opts.RequireCallbackAllowlist, "启用 callback_url 时应限制回调域名。"))
 	checks = append(checks, seedanceStatementCheck())
 
 	status, ready, productionReady := seedanceOverallReadiness(checks)
@@ -183,14 +186,18 @@ func seedanceIntRangeCheck(key string, envName string, defaultValue int, minValu
 	return seedanceCheck(key, SeedanceReadinessCheckPass, false, fmt.Sprintf("%s=%d is within expected range %d-%d.", envName, value, minValue, maxValue), recommendation)
 }
 
-func seedanceAllowlistCheck(key string, envName string, required bool, recommendation string) SeedanceBillingReadinessCheck {
+func seedanceAllowlistCheck(key string, envName string, warnWhenEmpty bool, blockWhenEmpty bool, recommendation string) SeedanceBillingReadinessCheck {
 	value := strings.TrimSpace(common.GetEnvOrDefaultString(envName, ""))
 	if value == "" {
 		status := SeedanceReadinessCheckInfo
-		if required {
+		blocking := false
+		if blockWhenEmpty {
+			status = SeedanceReadinessCheckFail
+			blocking = true
+		} else if warnWhenEmpty {
 			status = SeedanceReadinessCheckWarn
 		}
-		return seedanceCheck(key, status, false, fmt.Sprintf("%s is empty.", envName), recommendation)
+		return seedanceCheck(key, status, blocking, fmt.Sprintf("%s is empty.", envName), recommendation)
 	}
 	for _, item := range strings.Split(value, ",") {
 		trimmed := strings.TrimSpace(item)

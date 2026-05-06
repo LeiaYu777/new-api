@@ -70,6 +70,40 @@ func TestBuildSeedanceBillingReadinessWarnsForStrictUsageWithoutConfirmation(t *
 	}
 }
 
+func TestBuildSeedanceBillingReadinessBlocksRemoteAllowlistWhenRequired(t *testing.T) {
+	t.Setenv("SEEDANCE_REQUIRE_PRICE_CONFIRMATION", "true")
+	t.Setenv("SEEDANCE_PRICE_CONFIRMED", "true")
+	t.Setenv("SEEDANCE_REMOTE_URL_ALLOWLIST", "")
+
+	readiness := BuildSeedanceBillingReadiness(SeedanceBillingReadinessOptions{
+		ModelName:              "doubao-seedance-2-0",
+		RequireRemoteAllowlist: true,
+	})
+	if readiness.Status != SeedanceReadinessStatusBlocked {
+		t.Fatalf("status = %q", readiness.Status)
+	}
+	if !hasSeedanceReadinessCheck(readiness, "seedance_remote_url_allowlist", SeedanceReadinessCheckFail) {
+		t.Fatalf("missing failing seedance_remote_url_allowlist check: %#v", readiness.Checks)
+	}
+}
+
+func TestBuildSeedanceBillingReadinessBlocksCallbackAllowlistWhenRequired(t *testing.T) {
+	t.Setenv("SEEDANCE_REQUIRE_PRICE_CONFIRMATION", "true")
+	t.Setenv("SEEDANCE_PRICE_CONFIRMED", "true")
+	t.Setenv("SEEDANCE_CALLBACK_URL_ALLOWLIST", "")
+
+	readiness := BuildSeedanceBillingReadiness(SeedanceBillingReadinessOptions{
+		ModelName:                "doubao-seedance-2-0",
+		RequireCallbackAllowlist: true,
+	})
+	if readiness.Status != SeedanceReadinessStatusBlocked {
+		t.Fatalf("status = %q", readiness.Status)
+	}
+	if !hasSeedanceReadinessCheck(readiness, "seedance_callback_url_allowlist", SeedanceReadinessCheckFail) {
+		t.Fatalf("missing failing seedance_callback_url_allowlist check: %#v", readiness.Checks)
+	}
+}
+
 func hasSeedanceReadinessCheck(readiness SeedanceBillingReadiness, key string, status string) bool {
 	for _, check := range readiness.Checks {
 		if check.Key == key && check.Status == status {
