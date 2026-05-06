@@ -19,9 +19,10 @@ set -euo pipefail
 #   SEEDANCE_PRICE_CONFIRMED=false             Set true after customer price is configured.
 #   FAIL_ON_WARNINGS=false          Exit non-zero when warnings exist.
 #   CHECK_HTTP=false                Check BASE_URL /api/status reachability.
+#   CHECK_BILLING_READINESS=false   Check BASE_URL /api/billing/readiness with admin credentials.
 #   CHECK_BILLING_METRICS=false     Check BASE_URL /api/billing/metrics with admin credentials.
-#   ADMIN_ACCESS_TOKEN=...          Admin access token for CHECK_BILLING_METRICS.
-#   ADMIN_USER_ID=1                 Admin user id for CHECK_BILLING_METRICS New-Api-User header.
+#   ADMIN_ACCESS_TOKEN=...          Admin access token for billing API checks.
+#   ADMIN_USER_ID=1                 Admin user id for billing API checks New-Api-User header.
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${ROOT_DIR}"
@@ -161,6 +162,7 @@ REQUIRE_LOCAL_WORKER="${REQUIRE_LOCAL_WORKER:-false}"
 USAGE_CONFIRMED="${USAGE_CONFIRMED:-false}"
 FAIL_ON_WARNINGS="${FAIL_ON_WARNINGS:-false}"
 CHECK_HTTP="${CHECK_HTTP:-false}"
+CHECK_BILLING_READINESS="${CHECK_BILLING_READINESS:-false}"
 CHECK_BILLING_METRICS="${CHECK_BILLING_METRICS:-false}"
 HTTP_TIMEOUT_SECONDS="${HTTP_TIMEOUT_SECONDS:-5}"
 METRICS_MODEL="${METRICS_MODEL:-${MODEL}%}"
@@ -288,6 +290,46 @@ if is_true "${CHECK_HTTP}"; then
   else
     warn "Skipping CHECK_HTTP because curl is not installed."
   fi
+fi
+
+if is_true "${CHECK_BILLING_READINESS}"; then
+  print_section "Billing readiness API"
+  if ! command -v curl >/dev/null 2>&1; then
+    fail "Cannot check /api/billing/readiness because curl is not installed."
+  elif ! command -v jq >/dev/null 2>&1; then
+    fail "Cannot check /api/billing/readiness because jq is not installed."
+  elif [[ -z "${ADMIN_ACCESS_TOKEN:-}" || -z "${ADMIN_USER_ID:-}" ]]; then
+    fail "CHECK_BILLING_READINESS=true requires ADMIN_ACCESS_TOKEN and ADMIN_USER_ID."
+  else
+    readiness_url="${BASE_URL%/}/api/billing/readiness"
+    readiness_file="$(mktemp -t seedance-billing-readiness.XXXXXX)"
+    http_code="$(curl -sS -G -m "${HTTP_TIMEOUT_SECONDS}" \
+      -H "Authorization: ${ADMIN_ACCESS_TOKEN}" \
+      -H "New-Api-User: ${ADMIN_USER_ID}" \
+      --data-urlencode "model_name=${MODEL}" \
+      --data-urlencode "usage_confirmed=${USAGE_CONFIRMED}" \
+      --data-urlencode "require_local_worker=${REQUIRE_LOCAL_WORKER}" \
+      -o "${readiness_file}" \
+      -w '%{http_code}' \
+      "${readiness_url}" || true)"
+    readiness_status="$(jq -r '.data.status // empty' "${readiness_file}" 2>/dev/null || true)"
+    if [[ ! "${http_code}" =~ ^2[0-9][0-9]$ ]]; then
+      fail "${readiness_url}?model_name=${MODEL} returned HTTP ${http_code:-curl_error}."
+    elif [[ "$(jq -r '.success // empty' "${readiness_file}" 2>/dev/null || true)" != "true" ]]; then
+      fail "/api/billing/readiness did not return success=true."
+    elif [[ "${readiness_status}" == "blocked" ]]; then
+      fail "/api/billing/readiness returned status=blocked."
+    elif [[ "${readiness_status}" == "warning" ]]; then
+      warn "/api/billing/readiness returned status=warning. Review readiness checks before production."
+    elif [[ "${readiness_status}" == "ready" ]]; then
+      pass "/api/billing/readiness returned status=ready."
+    else
+      fail "/api/billing/readiness returned unknown status '${readiness_status:-empty}'."
+    fi
+    rm -f "${readiness_file}"
+  fi
+else
+  info "CHECK_BILLING_READINESS=false. Set it true in pre-production to validate the server-side readiness endpoint."
 fi
 
 if is_true "${CHECK_BILLING_METRICS}"; then

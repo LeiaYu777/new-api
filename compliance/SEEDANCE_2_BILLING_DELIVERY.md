@@ -92,8 +92,9 @@ Do not deliver to production customers until these items are complete:
 3. Smoke test terminal output.
 4. Evidence collector output under `compliance/evidence/seedance-<timestamp>/`.
 5. Evidence verifier terminal output.
-6. Billing console screenshots.
-7. Exported billing CSV.
-8. Customer price configuration screenshots.
-9. Prometheus/Grafana target and dashboard screenshots.
-10. Commercial authorization proof, if using closed-source delivery.
+6. `/api/billing/readiness` output with status not blocked.
+7. Billing console screenshots.
+8. Exported billing CSV.
+9. Customer price configuration screenshots.
+10. Prometheus/Grafana target and dashboard screenshots.
+11. Commercial authorization proof, if using closed-source delivery.

@@ -45,9 +45,10 @@ scripts/seedance-billing-preflight.sh
 REQUIRE_LOCAL_WORKER=true scripts/seedance-billing-preflight.sh
 ```
 
-如需同时验证 Prometheus 指标端点，可追加管理员 access token 和用户 ID：
+如需同时验证服务端 readiness API 和 Prometheus 指标端点，可追加管理员 access token 和用户 ID：
 
 ```bash
+CHECK_BILLING_READINESS=true \
 CHECK_BILLING_METRICS=true \
 BASE_URL=https://your-domain \
 ADMIN_ACCESS_TOKEN=sk-admin-access-token \
@@ -55,7 +56,7 @@ ADMIN_USER_ID=1 \
 scripts/seedance-billing-preflight.sh
 ```
 
-预检脚本不会提交真实任务，只检查 worker、usage 策略、素材域名 allowlist、月结、告警阈值和可选指标抓取等上线前配置。
+预检脚本不会提交真实任务，只检查 worker、usage 策略、素材域名 allowlist、月结、告警阈值，以及可选的服务端 readiness 和指标抓取等上线前配置。
 
 ### 2.2 渠道配置
 
@@ -285,7 +286,8 @@ EXPECT_SUBMIT_FAILURE=true \
 4. `/console/billing` 汇总截图，建议同时保存按 `task_id` 精确筛选后的截图。
 5. CSV 导出文件，建议同时保存按 `task_id` 精确筛选后的 CSV。
 6. 服务端日志中与 `task_id` 对应的计费记录。
-7. Prometheus 指标抓取结果，至少包含 `newapi_billing_net_quota`、`newapi_billing_task_failure_rate`、`newapi_billing_worker_lag_seconds`。
+7. `/api/billing/readiness` 返回结果，状态不应为 `blocked`。
+8. Prometheus 指标抓取结果，至少包含 `newapi_billing_net_quota`、`newapi_billing_task_failure_rate`、`newapi_billing_worker_lag_seconds`。
 
 可使用证据归档脚本统一保存验收材料：
 
@@ -298,7 +300,7 @@ TASK_ID=task_xxx \
 scripts/seedance-billing-collect-evidence.sh
 ```
 
-脚本会在 `compliance/evidence/seedance-<timestamp>/` 下保存账单汇总、告警、月结快照、CSV 流水、Prometheus 指标和任务查询结果。脚本不会把管理员 token 或用户 API key 写入证据目录。
+脚本会在 `compliance/evidence/seedance-<timestamp>/` 下保存服务端 readiness、账单汇总、告警、月结快照、CSV 流水、Prometheus 指标和任务查询结果。脚本不会把管理员 token 或用户 API key 写入证据目录。
 
 归档完成后执行离线校验：
 
@@ -306,7 +308,7 @@ scripts/seedance-billing-collect-evidence.sh
 scripts/seedance-billing-verify-evidence.sh compliance/evidence/seedance-20260506T120000Z
 ```
 
-校验脚本会检查必需文件、HTTP 状态、JSON 格式、CSV 对账字段、Prometheus 指标名，以及 manifest 中 `task_id` 与 CSV 流水是否匹配。
+校验脚本会检查必需文件、HTTP 状态、JSON 格式、readiness 状态、CSV 对账字段、Prometheus 指标名，以及 manifest 中 `task_id` 与 CSV 流水是否匹配。
 
 指标抓取示例：
 

@@ -15,6 +15,7 @@ set -euo pipefail
 #   API_KEY=sk-user-token                 Fetch /v1/video/generations/{TASK_ID}.
 #   TASK_ID=task_xxx                      Filter billing evidence to one task.
 #   MODEL_FILTER=doubao-seedance-2-0%     Billing model filter.
+#   READINESS_MODEL=doubao-seedance-2-0   Model used by /api/billing/readiness.
 #   START_TIMESTAMP=...                   Defaults to now - 24h.
 #   END_TIMESTAMP=...                     Defaults to now + 1h.
 #   USER_ID=...                           Optional user filter.
@@ -31,6 +32,7 @@ cd "${ROOT_DIR}"
 
 BASE_URL="${BASE_URL:-http://localhost:3000}"
 MODEL_FILTER="${MODEL_FILTER:-doubao-seedance-2-0%}"
+READINESS_MODEL="${READINESS_MODEL:-$(printf '%s' "${MODEL_FILTER}" | sed 's/%$//')}"
 TASK_ID="${TASK_ID:-}"
 USER_ID="${USER_ID:-}"
 USERNAME="${USERNAME:-}"
@@ -185,6 +187,7 @@ jq -n \
   --arg generated_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
   --arg base_url "${BASE_URL}" \
   --arg model_filter "${MODEL_FILTER}" \
+  --arg readiness_model "${READINESS_MODEL}" \
   --arg task_id "${TASK_ID}" \
   --arg start_timestamp "${START_TIMESTAMP}" \
   --arg end_timestamp "${END_TIMESTAMP}" \
@@ -198,6 +201,7 @@ jq -n \
     generated_at: $generated_at,
     base_url: $base_url,
     model_filter: $model_filter,
+    readiness_model: $readiness_model,
     task_id: $task_id,
     start_timestamp: ($start_timestamp | tonumber),
     end_timestamp: ($end_timestamp | tonumber),
@@ -228,6 +232,7 @@ Generated at: $(date -u +%Y-%m-%dT%H:%M:%SZ)
 ## Files
 
 - manifest.json: evidence scope and timestamps.
+- billing-readiness.json: /api/billing/readiness server-side production readiness result.
 - billing-summary.json: /api/billing/summary result.
 - billing-alerts.json: /api/billing/alerts result.
 - billing-statements.json: /api/billing/statements result.
@@ -239,6 +244,7 @@ Generated at: $(date -u +%Y-%m-%dT%H:%M:%SZ)
 Sensitive tokens are intentionally not written to this directory.
 EOF_README
 
+collect_admin_json "/api/billing/readiness" "${OUTPUT_DIR}/billing-readiness.json" --data-urlencode "model_name=${READINESS_MODEL}"
 collect_admin_json "/api/billing/summary" "${OUTPUT_DIR}/billing-summary.json" "${COMMON_QUERY[@]}"
 collect_admin_json "/api/billing/alerts" "${OUTPUT_DIR}/billing-alerts.json" "${COMMON_QUERY[@]}"
 collect_admin_json "/api/billing/statements" "${OUTPUT_DIR}/billing-statements.json" "${COMMON_QUERY[@]}" --data-urlencode "p=1" --data-urlencode "page_size=${LIMIT}"

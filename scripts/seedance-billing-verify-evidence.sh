@@ -182,6 +182,7 @@ check_metric_name() {
 
 require_file "manifest.json" || true
 require_file "README.md" || true
+require_file "billing-readiness.json" || true
 require_file "billing-summary.json" || true
 require_file "billing-alerts.json" || true
 require_file "billing-statements.json" || true
@@ -189,23 +190,38 @@ require_file "billing-ledger.csv" || true
 require_file "billing-metrics.prom" || true
 optional_file "billing-topups.csv" || true
 
-for file in billing-summary.json billing-alerts.json billing-statements.json billing-ledger.csv billing-metrics.prom; do
+for file in billing-readiness.json billing-summary.json billing-alerts.json billing-statements.json billing-ledger.csv billing-metrics.prom; do
   if [[ -e "${EVIDENCE_DIR}/${file}" || -e "${EVIDENCE_DIR}/${file}.http_status" ]]; then
     check_http_status "${file}"
   fi
 done
 
-for file in manifest.json billing-summary.json billing-alerts.json billing-statements.json; do
+for file in manifest.json billing-readiness.json billing-summary.json billing-alerts.json billing-statements.json; do
   if [[ -s "${EVIDENCE_DIR}/${file}" ]]; then
     check_json_file "${file}"
   fi
 done
 
-for file in billing-summary.json billing-alerts.json billing-statements.json; do
+for file in billing-readiness.json billing-summary.json billing-alerts.json billing-statements.json; do
   if [[ -s "${EVIDENCE_DIR}/${file}" ]]; then
     check_api_success "${file}"
   fi
 done
+
+if [[ -s "${EVIDENCE_DIR}/billing-readiness.json" ]]; then
+  readiness_status="$(jq -r '.data.status // empty' "${EVIDENCE_DIR}/billing-readiness.json" 2>/dev/null || true)"
+  case "${readiness_status}" in
+    ready|warning)
+      pass "billing-readiness.json status is ${readiness_status}."
+      ;;
+    blocked)
+      fail "billing-readiness.json status is blocked."
+      ;;
+    *)
+      fail "billing-readiness.json status is ${readiness_status:-empty}."
+      ;;
+  esac
+fi
 
 if [[ -s "${EVIDENCE_DIR}/billing-ledger.csv" ]]; then
   check_csv_headers "billing-ledger.csv" \

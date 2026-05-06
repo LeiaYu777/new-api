@@ -247,6 +247,14 @@ GET /api/billing/metrics?model_name=doubao-seedance-2-0%
 
 该接口复用账单告警筛选条件和管理员鉴权，Prometheus 抓取时需要携带管理员 access token 与 `New-Api-User` 头。指标覆盖净扣费、消费/退款数量、退款率、异步任务成功/失败数、失败率、待处理任务、超时任务、worker 滞后、余额不足和上游错误信号。
 
+生产发布前也可以用服务端 readiness API 汇总关键配置状态：
+
+```text
+GET /api/billing/readiness?model_name=doubao-seedance-2-0
+```
+
+该接口需要管理员鉴权，返回 `status=ready|warning|blocked`、`ready`、`production_ready` 和逐项检查结果，覆盖价格配置/确认闸门、任务 worker、usage 策略、超时退款、素材 allowlist、月结快照等上线前风险。交付验收中 `status` 不应为 `blocked`。
+
 完整监控接入步骤见：
 
 ```text
@@ -254,13 +262,13 @@ docs/SEEDANCE_2_MONITORING.md
 deploy/observability/seedance-billing-grafana-dashboard.json
 ```
 
-真实验收后可用证据归档脚本保存任务结果、账单汇总、CSV 和指标输出：
+真实验收后可用证据归档脚本保存任务结果、readiness、账单汇总、CSV 和指标输出：
 
 ```text
 scripts/seedance-billing-collect-evidence.sh
 ```
 
-归档后用离线校验脚本确认必需文件、HTTP 状态、JSON 格式、CSV 对账字段、Prometheus 指标名和 `task_id` 对账痕迹：
+归档后用离线校验脚本确认必需文件、HTTP 状态、JSON 格式、readiness 状态、CSV 对账字段、Prometheus 指标名和 `task_id` 对账痕迹：
 
 ```text
 scripts/seedance-billing-verify-evidence.sh compliance/evidence/seedance-<timestamp>
