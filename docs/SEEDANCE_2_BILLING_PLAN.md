@@ -272,13 +272,13 @@ docs/SEEDANCE_2_MONITORING.md
 deploy/observability/seedance-billing-grafana-dashboard.json
 ```
 
-真实验收后可用证据归档脚本保存任务结果、readiness、账单汇总、CSV 和指标输出：
+真实验收后可用证据归档脚本保存任务结果、readiness、管理员账单汇总、用户自助账单、CSV 和指标输出：
 
 ```text
 scripts/seedance-billing-collect-evidence.sh
 ```
 
-归档后用离线校验脚本确认必需文件、HTTP 状态、JSON 格式、readiness 状态、CSV 对账字段、Prometheus 指标名和 `task_id` 对账痕迹：
+归档后用离线校验脚本确认必需文件、HTTP 状态、JSON 格式、readiness 状态、CSV 对账字段、Prometheus 指标名、用户自助账单只包含当前用户，以及 `task_id` 对账痕迹：
 
 ```text
 scripts/seedance-billing-verify-evidence.sh compliance/evidence/seedance-<timestamp>

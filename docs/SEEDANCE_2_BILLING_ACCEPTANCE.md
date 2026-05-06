@@ -284,10 +284,11 @@ EXPECT_SUBMIT_FAILURE=true \
 2. 任务最终查询结果。
 3. 用户余额或订阅额度验收前后截图。
 4. `/console/billing` 汇总截图，建议同时保存按 `task_id` 精确筛选后的截图。
-5. CSV 导出文件，建议同时保存按 `task_id` 精确筛选后的 CSV。
-6. 服务端日志中与 `task_id` 对应的计费记录。
-7. `/api/billing/readiness` 返回结果，状态不应为 `blocked`。
-8. Prometheus 指标抓取结果，至少包含 `newapi_billing_net_quota`、`newapi_billing_task_failure_rate`、`newapi_billing_worker_lag_seconds`。
+5. 普通用户钱包/充值页“我的 Seedance 账单”截图，证明客户自己可以核对消费、退款和资金来源。
+6. CSV 导出文件，建议同时保存管理员视角和用户自助视角按 `task_id` 精确筛选后的 CSV。
+7. 服务端日志中与 `task_id` 对应的计费记录。
+8. `/api/billing/readiness` 返回结果，状态不应为 `blocked`。
+9. Prometheus 指标抓取结果，至少包含 `newapi_billing_net_quota`、`newapi_billing_task_failure_rate`、`newapi_billing_worker_lag_seconds`。
 
 可使用证据归档脚本统一保存验收材料：
 
@@ -295,12 +296,29 @@ EXPECT_SUBMIT_FAILURE=true \
 BASE_URL=https://your-domain \
 ADMIN_ACCESS_TOKEN=sk-admin-access-token \
 ADMIN_USER_ID=1 \
+SELF_ACCESS_TOKEN=sk-user-access-token \
+SELF_USER_ID=1001 \
 API_KEY=sk-user-token \
 TASK_ID=task_xxx \
 scripts/seedance-billing-collect-evidence.sh
 ```
 
-脚本会在 `compliance/evidence/seedance-<timestamp>/` 下保存服务端 readiness、账单汇总、告警、月结快照、CSV 流水、Prometheus 指标和任务查询结果。脚本不会把管理员 token 或用户 API key 写入证据目录。
+脚本会在 `compliance/evidence/seedance-<timestamp>/` 下保存服务端 readiness、管理员账单汇总、告警、月结快照、CSV 流水、Prometheus 指标、普通用户自助账单接口证据和任务查询结果。脚本不会把管理员 token、用户 access token 或用户 API key 写入证据目录。
+
+如果提供 `SELF_ACCESS_TOKEN` 和 `SELF_USER_ID`，脚本会自动采集：
+
+```text
+billing-self-summary.json
+billing-self-statements.json
+billing-self-ledger.csv
+billing-self-topups.csv
+```
+
+如需强制要求用户自助账单证据，可设置：
+
+```bash
+COLLECT_SELF_BILLING=true scripts/seedance-billing-collect-evidence.sh
+```
 
 归档完成后执行离线校验：
 
@@ -308,7 +326,7 @@ scripts/seedance-billing-collect-evidence.sh
 scripts/seedance-billing-verify-evidence.sh compliance/evidence/seedance-20260506T120000Z
 ```
 
-校验脚本会检查必需文件、HTTP 状态、JSON 格式、readiness 状态、CSV 对账字段、Prometheus 指标名，以及 manifest 中 `task_id` 与 CSV 流水是否匹配。
+校验脚本会检查必需文件、HTTP 状态、JSON 格式、readiness 状态、CSV 对账字段、Prometheus 指标名、用户自助账单是否只包含 `self_user_id` 的数据，以及 manifest 中 `task_id` 与 CSV 流水是否匹配。
 
 指标抓取示例：
 
@@ -337,6 +355,7 @@ deploy/observability/seedance-billing-grafana-dashboard.json
 4. 订阅扣费失败任务：订阅预扣退还。
 5. 非法参数不会发起上游调用。
 6. 管理员可通过 `/console/billing` 查到用户、模型、渠道、任务 ID、净扣费。
+7. 普通用户可通过钱包/充值页“我的 Seedance 账单”或 `/api/billing/self/*` 查到自己的消费、退款、资金来源和月结快照，且不能查看其他用户账单。
 
 ## 8. 不通过处理
 

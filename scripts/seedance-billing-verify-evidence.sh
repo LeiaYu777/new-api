@@ -11,6 +11,7 @@ set -euo pipefail
 #   EVIDENCE_DIR=...                  Directory to verify when no positional arg is given.
 #   REQUIRE_TASK_RESULT=auto          auto|true|false. auto requires task-result.json when manifest.task_id is set.
 #   REQUIRE_TASK_ID_MATCH=auto        auto|true|false. auto requires billing-ledger.csv to contain manifest.task_id when set.
+#   REQUIRE_SELF_BILLING=auto         auto|true|false. auto requires self files when manifest.collect_self_billing=true.
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${ROOT_DIR}"
@@ -18,6 +19,7 @@ cd "${ROOT_DIR}"
 EVIDENCE_DIR="${1:-${EVIDENCE_DIR:-}}"
 REQUIRE_TASK_RESULT="${REQUIRE_TASK_RESULT:-auto}"
 REQUIRE_TASK_ID_MATCH="${REQUIRE_TASK_ID_MATCH:-auto}"
+REQUIRE_SELF_BILLING="${REQUIRE_SELF_BILLING:-auto}"
 FAILS=0
 WARNS=0
 CHECKS=0
@@ -190,19 +192,46 @@ require_file "billing-ledger.csv" || true
 require_file "billing-metrics.prom" || true
 optional_file "billing-topups.csv" || true
 
-for file in billing-readiness.json billing-summary.json billing-alerts.json billing-statements.json billing-ledger.csv billing-metrics.prom; do
+manifest_collect_self=false
+self_user_id=""
+if [[ -s "${EVIDENCE_DIR}/manifest.json" ]]; then
+  manifest_collect_self="$(jq -r '.collect_self_billing // false' "${EVIDENCE_DIR}/manifest.json" 2>/dev/null || true)"
+  self_user_id="$(jq -r '.self_user_id // empty' "${EVIDENCE_DIR}/manifest.json" 2>/dev/null || true)"
+fi
+
+should_require_self=false
+if is_true "${REQUIRE_SELF_BILLING}"; then
+  should_require_self=true
+elif [[ "$(lower "${REQUIRE_SELF_BILLING}")" == "auto" && "$(lower "${manifest_collect_self}")" == "true" ]]; then
+  should_require_self=true
+fi
+
+if [[ "${should_require_self}" == "true" ]]; then
+  require_file "billing-self-summary.json" || true
+  require_file "billing-self-statements.json" || true
+  require_file "billing-self-ledger.csv" || true
+  optional_file "billing-self-topups.csv" || true
+else
+  for file in billing-self-summary.json billing-self-statements.json billing-self-ledger.csv billing-self-topups.csv; do
+    if [[ -e "${EVIDENCE_DIR}/${file}" ]]; then
+      optional_file "${file}" || true
+    fi
+  done
+fi
+
+for file in billing-readiness.json billing-summary.json billing-alerts.json billing-statements.json billing-ledger.csv billing-metrics.prom billing-self-summary.json billing-self-statements.json billing-self-ledger.csv billing-self-topups.csv; do
   if [[ -e "${EVIDENCE_DIR}/${file}" || -e "${EVIDENCE_DIR}/${file}.http_status" ]]; then
     check_http_status "${file}"
   fi
 done
 
-for file in manifest.json billing-readiness.json billing-summary.json billing-alerts.json billing-statements.json; do
+for file in manifest.json billing-readiness.json billing-summary.json billing-alerts.json billing-statements.json billing-self-summary.json billing-self-statements.json; do
   if [[ -s "${EVIDENCE_DIR}/${file}" ]]; then
     check_json_file "${file}"
   fi
 done
 
-for file in billing-readiness.json billing-summary.json billing-alerts.json billing-statements.json; do
+for file in billing-readiness.json billing-summary.json billing-alerts.json billing-statements.json billing-self-summary.json billing-self-statements.json; do
   if [[ -s "${EVIDENCE_DIR}/${file}" ]]; then
     check_api_success "${file}"
   fi
@@ -227,6 +256,28 @@ if [[ -s "${EVIDENCE_DIR}/billing-ledger.csv" ]]; then
   check_csv_headers "billing-ledger.csv" \
     created_at user_id username model_name channel_id token_id log_type quota \
     group request_id task_id content billing_source subscription_id pre_consumed_quota actual_quota
+fi
+
+if [[ -s "${EVIDENCE_DIR}/billing-self-ledger.csv" ]]; then
+  check_csv_headers "billing-self-ledger.csv" \
+    created_at user_id username model_name channel_id token_id log_type quota \
+    group request_id task_id content billing_source subscription_id pre_consumed_quota actual_quota
+fi
+
+if [[ -s "${EVIDENCE_DIR}/billing-self-summary.json" && -n "${self_user_id}" ]]; then
+  if jq -e --argjson self_user_id "${self_user_id}" '(.data.items // []) | all(.user_id == $self_user_id)' "${EVIDENCE_DIR}/billing-self-summary.json" >/dev/null 2>&1; then
+    pass "billing-self-summary.json only contains self_user_id=${self_user_id} rows."
+  else
+    fail "billing-self-summary.json contains rows outside self_user_id=${self_user_id}."
+  fi
+fi
+
+if [[ -s "${EVIDENCE_DIR}/billing-self-statements.json" && -n "${self_user_id}" ]]; then
+  if jq -e --argjson self_user_id "${self_user_id}" '(.data.items // []) | all(.user_id == $self_user_id)' "${EVIDENCE_DIR}/billing-self-statements.json" >/dev/null 2>&1; then
+    pass "billing-self-statements.json only contains self_user_id=${self_user_id} rows."
+  else
+    fail "billing-self-statements.json contains rows outside self_user_id=${self_user_id}."
+  fi
 fi
 
 if [[ -s "${EVIDENCE_DIR}/billing-metrics.prom" ]]; then
@@ -276,6 +327,13 @@ if [[ "${should_require_task_match}" == "true" ]]; then
     pass "billing-ledger.csv contains task_id ${manifest_task_id}."
   else
     fail "billing-ledger.csv does not contain task_id ${manifest_task_id}."
+  fi
+  if [[ "${should_require_self}" == "true" && -s "${EVIDENCE_DIR}/billing-self-ledger.csv" ]]; then
+    if grep -Fq "${manifest_task_id}" "${EVIDENCE_DIR}/billing-self-ledger.csv"; then
+      pass "billing-self-ledger.csv contains task_id ${manifest_task_id}."
+    else
+      fail "billing-self-ledger.csv does not contain task_id ${manifest_task_id}."
+    fi
   fi
 fi
 

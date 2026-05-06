@@ -25,7 +25,7 @@
 | 配置真实价格 | 基础保护完成，仍需业务定价 | 当前代码提供默认固定价格和倍率入口，并新增 `SEEDANCE_REQUIRE_PRICE_CONFIRMATION` / `SEEDANCE_PRICE_CONFIRMED` 生产价格确认闸门；真实价格仍需按客户成本、毛利和计费口径配置。 | 模型价格不为 0，`SEEDANCE_PRICE_CONFIRMED=true` 后成功任务净扣费等于业务定价，失败任务净扣费为 0；未确认价格时 Seedance 请求被本地阻断。 |
 | 验证充值入口 | 未完成，需客户支付方式 | 代码复用现有充值订单和管理员补单能力，但客户实际支付渠道需要单独验收。 | 用户充值到账后余额增加，充值流水导出包含 `content` 并可被财务核对。 |
 | 验证任务轮询 worker | 未完成，需部署环境 | Seedance 是异步任务，生产必须启用任务轮询，否则失败退款和最终结算不会及时发生。 | `UPDATE_TASK=true` 的 worker 正常运行，任务最终状态会更新并触发结算或退款。 |
-| 完整验收手册执行 | 未完成 | 需要按 `docs/SEEDANCE_2_BILLING_ACCEPTANCE.md` 跑钱包、订阅、余额不足、非法参数、usage 缺失场景；代码已提供 `/api/billing/readiness`、`scripts/seedance-billing-collect-evidence.sh` 归档接口证据，并提供 `scripts/seedance-billing-verify-evidence.sh` 做离线完整性校验。 | 验收证据齐全，包括 readiness、请求、任务结果、余额前后、账单页截图、CSV 和 Prometheus 指标，且 verify 脚本通过。 |
+| 完整验收手册执行 | 未完成 | 需要按 `docs/SEEDANCE_2_BILLING_ACCEPTANCE.md` 跑钱包、订阅、余额不足、非法参数、usage 缺失场景；代码已提供 `/api/billing/readiness`、`scripts/seedance-billing-collect-evidence.sh` 归档管理员和用户自助账单证据，并提供 `scripts/seedance-billing-verify-evidence.sh` 做离线完整性校验。 | 验收证据齐全，包括 readiness、请求、任务结果、余额前后、管理员账单页截图、用户自助账单截图、CSV 和 Prometheus 指标，且 verify 脚本通过。 |
 
 ## 3. P1 建议上线前完成
 
@@ -56,7 +56,7 @@
 1. 在预发环境配置客户真实火山方舟 Seedance 2.0 渠道、模型映射和 API Key。
 2. 配置真实固定价格，设置 `SEEDANCE_REQUIRE_PRICE_CONFIRMATION=true`，审批通过后再设置 `SEEDANCE_PRICE_CONFIRMED=true`，先不开启严格 usage 校验。
 3. 执行 `scripts/seedance-billing-preflight.sh`，检查 worker、usage 策略、素材域名 allowlist、月结、告警阈值和可选 readiness / Prometheus 指标抓取。
-4. 用钱包模式执行 smoke test，并用 `scripts/seedance-billing-collect-evidence.sh` 保存账单页配套接口证据和 CSV，再执行 `scripts/seedance-billing-verify-evidence.sh`。
+4. 用钱包模式执行 smoke test，并用 `SELF_ACCESS_TOKEN`、`SELF_USER_ID` 配合 `scripts/seedance-billing-collect-evidence.sh` 保存管理员账单和用户自助账单接口证据、CSV，再执行 `scripts/seedance-billing-verify-evidence.sh`。
 5. 用订阅模式执行 smoke test，验证订阅额度扣费与退款，并归档和校验证据。
 6. 执行余额不足、非法参数、任务失败或超时场景。
 7. 配置 Prometheus/Grafana 抓取 `/api/billing/metrics`，验证退款率、失败率、worker 滞后等指标可告警。
