@@ -115,8 +115,12 @@ func ExportBillingLogs(c *gin.Context) {
 		return
 	}
 
+	writeBillingLogsCSV(c, "billing-logs.csv", logs)
+}
+
+func writeBillingLogsCSV(c *gin.Context, filename string, logs []*model.Log) {
 	c.Header("Content-Type", "text/csv; charset=utf-8")
-	c.Header("Content-Disposition", "attachment; filename=billing-logs.csv")
+	c.Header("Content-Disposition", "attachment; filename="+filename)
 	writer := csv.NewWriter(c.Writer)
 	_ = writer.Write([]string{
 		"created_at",
@@ -161,6 +165,59 @@ func ExportBillingLogs(c *gin.Context) {
 	if err := writer.Error(); err != nil {
 		common.ApiError(c, err)
 	}
+}
+
+func GetSelfBillingSummary(c *gin.Context) {
+	startTimestamp, _ := strconv.ParseInt(c.Query("start_timestamp"), 10, 64)
+	endTimestamp, _ := strconv.ParseInt(c.Query("end_timestamp"), 10, 64)
+	modelName := c.Query("model_name")
+	channel, _ := strconv.Atoi(c.Query("channel"))
+	group := c.Query("group")
+	taskId := c.Query("task_id")
+	billingSource := c.Query("billing_source")
+	limit, _ := strconv.Atoi(c.Query("limit"))
+
+	summary, err := model.GetUserBillingSummary(c.GetInt("id"), startTimestamp, endTimestamp, modelName, channel, group, taskId, billingSource, limit)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	common.ApiSuccess(c, summary)
+}
+
+func ExportSelfBillingLogs(c *gin.Context) {
+	logType, _ := strconv.Atoi(c.Query("type"))
+	startTimestamp, _ := strconv.ParseInt(c.Query("start_timestamp"), 10, 64)
+	endTimestamp, _ := strconv.ParseInt(c.Query("end_timestamp"), 10, 64)
+	tokenName := c.Query("token_name")
+	modelName := c.Query("model_name")
+	channel, _ := strconv.Atoi(c.Query("channel"))
+	group := c.Query("group")
+	requestId := c.Query("request_id")
+	taskId := c.Query("task_id")
+	billingSource := c.Query("billing_source")
+	limit, _ := strconv.Atoi(c.Query("limit"))
+
+	logs, err := model.GetUserBillingExportLogs(c.GetInt("id"), logType, startTimestamp, endTimestamp, modelName, tokenName, channel, group, requestId, taskId, billingSource, limit)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+
+	writeBillingLogsCSV(c, "billing-self-logs.csv", logs)
+}
+
+func GetSelfBillingStatements(c *gin.Context) {
+	pageInfo := common.GetPageQuery(c)
+	filter := parseBillingStatementFilter(c)
+	statements, total, err := model.GetUserBillingStatements(c.GetInt("id"), filter, pageInfo.GetStartIdx(), pageInfo.GetPageSize())
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	pageInfo.SetTotal(int(total))
+	pageInfo.SetItems(statements)
+	common.ApiSuccess(c, pageInfo)
 }
 
 func parseBillingTimestampQuery(c *gin.Context, primary string, fallback string) int64 {

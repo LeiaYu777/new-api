@@ -208,6 +208,28 @@ func TestGetBillingExportLogsFiltersByBillingSource(t *testing.T) {
 	}
 }
 
+func TestGetUserBillingExportLogsForcesUserScope(t *testing.T) {
+	db := setupLogBillingTestDB(t)
+	logs := []*Log{
+		{UserId: 1, Username: "alice", CreatedAt: 10, Type: LogTypeConsume, ModelName: "doubao-seedance-2-0", Quota: 1000, ChannelId: 45, Group: "vip", Other: common.MapToJsonStr(map[string]interface{}{"task_id": "task_alice", "billing_source": billingSourceWallet})},
+		{UserId: 2, Username: "bob", CreatedAt: 20, Type: LogTypeConsume, ModelName: "doubao-seedance-2-0", Quota: 9000, ChannelId: 45, Group: "vip", Other: common.MapToJsonStr(map[string]interface{}{"task_id": "task_bob", "billing_source": billingSourceWallet})},
+	}
+	if err := db.Create(&logs).Error; err != nil {
+		t.Fatalf("failed to seed logs: %v", err)
+	}
+
+	exported, err := GetUserBillingExportLogs(1, LogTypeUnknown, 0, 0, "doubao-seedance-2-0", "", 45, "vip", "", "", "", 100)
+	if err != nil {
+		t.Fatalf("GetUserBillingExportLogs() error = %v", err)
+	}
+	if len(exported) != 1 {
+		t.Fatalf("exported len = %d, logs = %+v", len(exported), exported)
+	}
+	if exported[0].UserId != 1 || exported[0].Username != "alice" || exported[0].Quota != 1000 {
+		t.Fatalf("unexpected exported log: %+v", exported[0])
+	}
+}
+
 func TestGetBillingSummaryFiltersByTaskID(t *testing.T) {
 	db := setupLogBillingTestDB(t)
 	logs := []*Log{
@@ -231,6 +253,32 @@ func TestGetBillingSummaryFiltersByTaskID(t *testing.T) {
 	}
 	if summary.RequestCount != 1 || summary.RefundCount != 1 {
 		t.Fatalf("summary counts = %+v", summary)
+	}
+}
+
+func TestGetUserBillingSummaryForcesUserScope(t *testing.T) {
+	db := setupLogBillingTestDB(t)
+	logs := []*Log{
+		{UserId: 1, Username: "alice", CreatedAt: 10, Type: LogTypeConsume, ModelName: "doubao-seedance-2-0", Quota: 1000, ChannelId: 45, Group: "vip", Other: common.MapToJsonStr(map[string]interface{}{"billing_source": billingSourceWallet})},
+		{UserId: 1, Username: "alice", CreatedAt: 20, Type: LogTypeRefund, ModelName: "doubao-seedance-2-0", Quota: 250, ChannelId: 45, Group: "vip", Other: common.MapToJsonStr(map[string]interface{}{"billing_source": billingSourceWallet})},
+		{UserId: 2, Username: "bob", CreatedAt: 30, Type: LogTypeConsume, ModelName: "doubao-seedance-2-0", Quota: 9000, ChannelId: 45, Group: "vip", Other: common.MapToJsonStr(map[string]interface{}{"billing_source": billingSourceWallet})},
+	}
+	if err := db.Create(&logs).Error; err != nil {
+		t.Fatalf("failed to seed logs: %v", err)
+	}
+
+	summary, err := GetUserBillingSummary(1, 0, 0, "doubao-seedance-2-0", 45, "vip", "", "", 100)
+	if err != nil {
+		t.Fatalf("GetUserBillingSummary() error = %v", err)
+	}
+	if len(summary.Items) != 1 {
+		t.Fatalf("items len = %d", len(summary.Items))
+	}
+	if summary.Items[0].UserId != 1 || summary.Items[0].Username != "alice" {
+		t.Fatalf("unexpected summary item: %+v", summary.Items[0])
+	}
+	if summary.ConsumeQuota != 1000 || summary.RefundQuota != 250 || summary.NetQuota != 750 {
+		t.Fatalf("summary totals = %+v", summary)
 	}
 }
 
@@ -304,6 +352,34 @@ func TestGenerateBillingStatementsCreatesSourceSnapshots(t *testing.T) {
 	}
 	if netBySource[billingSourceSubscription] != 300 {
 		t.Fatalf("subscription net quota = %d", netBySource[billingSourceSubscription])
+	}
+}
+
+func TestGetUserBillingStatementsForcesUserScope(t *testing.T) {
+	db := setupLogBillingTestDB(t)
+	statements := []*BillingStatement{
+		{UserId: 1, Username: "alice", PeriodStart: 100, PeriodEnd: 200, ModelName: "doubao-seedance-2-0", ChannelId: 45, Group: "vip", BillingSource: billingSourceWallet, NetQuota: 750, ConsumeQuota: 1000, RefundQuota: 250},
+		{UserId: 2, Username: "bob", PeriodStart: 100, PeriodEnd: 200, ModelName: "doubao-seedance-2-0", ChannelId: 45, Group: "vip", BillingSource: billingSourceWallet, NetQuota: 9000, ConsumeQuota: 9000},
+	}
+	if err := db.Create(&statements).Error; err != nil {
+		t.Fatalf("failed to seed statements: %v", err)
+	}
+
+	got, total, err := GetUserBillingStatements(1, BillingStatementFilter{
+		PeriodStart: 100,
+		PeriodEnd:   200,
+		ModelName:   "doubao-seedance-2-0",
+		UserId:      2,
+		Username:    "bob",
+	}, 0, 100)
+	if err != nil {
+		t.Fatalf("GetUserBillingStatements() error = %v", err)
+	}
+	if total != 1 || len(got) != 1 {
+		t.Fatalf("total=%d len=%d statements=%+v", total, len(got), got)
+	}
+	if got[0].UserId != 1 || got[0].Username != "alice" || got[0].NetQuota != 750 {
+		t.Fatalf("unexpected statement: %+v", got[0])
 	}
 }
 

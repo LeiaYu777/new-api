@@ -375,6 +375,13 @@ func GetBillingExportLogs(logType int, startTimestamp int64, endTimestamp int64,
 	return logs, err
 }
 
+func GetUserBillingExportLogs(userId int, logType int, startTimestamp int64, endTimestamp int64, modelName string, tokenName string, channel int, group string, requestId string, taskId string, billingSource string, limit int) (logs []*Log, err error) {
+	if userId <= 0 {
+		return nil, errors.New("invalid user_id")
+	}
+	return GetBillingExportLogs(logType, startTimestamp, endTimestamp, modelName, "", userId, tokenName, channel, group, requestId, taskId, billingSource, limit)
+}
+
 const logSearchCountLimit = 10000
 
 const (
@@ -583,6 +590,13 @@ func GetBillingSummary(startTimestamp int64, endTimestamp int64, modelName strin
 		summary.TotalTokens += item.TotalTokens
 	}
 	return summary, nil
+}
+
+func GetUserBillingSummary(userId int, startTimestamp int64, endTimestamp int64, modelName string, channel int, group string, taskId string, billingSource string, limit int) (*BillingSummary, error) {
+	if userId <= 0 {
+		return nil, errors.New("invalid user_id")
+	}
+	return GetBillingSummary(startTimestamp, endTimestamp, modelName, "", userId, channel, group, taskId, billingSource, limit)
 }
 
 func SumUsedQuota(logType int, startTimestamp int64, endTimestamp int64, modelName string, username string, tokenName string, channel int, group string) (stat Stat, err error) {

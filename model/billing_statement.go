@@ -127,6 +127,15 @@ func GetBillingStatements(filter BillingStatementFilter, startIdx int, num int) 
 	return statements, total, err
 }
 
+func GetUserBillingStatements(userId int, filter BillingStatementFilter, startIdx int, num int) (statements []*BillingStatement, total int64, err error) {
+	if userId <= 0 {
+		return nil, 0, errors.New("invalid user_id")
+	}
+	filter.UserId = userId
+	filter.Username = ""
+	return GetBillingStatements(filter, startIdx, num)
+}
+
 func GenerateBillingStatements(filter BillingStatementFilter) (*BillingStatementGenerateResult, error) {
 	if filter.PeriodStart <= 0 || filter.PeriodEnd <= filter.PeriodStart {
 		return nil, errors.New("invalid billing statement period")

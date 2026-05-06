@@ -239,6 +239,16 @@ GET /api/billing/summary?user_id=&model_name=&start_timestamp=&end_timestamp=
 
 该页面默认按 `doubao-seedance-2-0%` 筛选 Seedance 2.0 系列模型，支持按时间、用户、模型、渠道、分组查询汇总，并可导出消费/退款/充值流水 CSV。
 
+用户自助账单只读接口已新增：
+
+```text
+GET /api/billing/self/summary
+GET /api/billing/self/export
+GET /api/billing/self/statements
+```
+
+这些接口使用当前登录用户身份强制过滤 `user_id`，即使请求参数中传入其他 `user_id` 或 `username` 也不会越权查询他人账单。适用于后续给客户侧前端展示“我的 Seedance 消费、退款、订阅额度和月结快照”。
+
 生产监控可使用 Prometheus 文本格式接口：
 
 ```text
@@ -351,10 +361,11 @@ MVP 阶段可以复用现有页面：
 1. 管理员账单页：`/console/billing`
 2. 账单汇总 API：`GET /api/billing/summary`
 3. 账单导出 API：`GET /api/billing/export`
+4. 用户自助账单只读 API：`GET /api/billing/self/summary`、`GET /api/billing/self/export`、`GET /api/billing/self/statements`
 
 后续建议新增：
 
-1. 客户可见账单页，按月展示消费、充值、退款和订阅额度。
+1. 客户可见账单页，基于 `/api/billing/self/*` 按月展示消费、充值、退款和订阅额度。
 2. Seedance 任务列表增强：展示视频任务状态、消耗、退款、结果 URL。
 3. 按钱包/订阅资金来源维度的汇总筛选。
 
