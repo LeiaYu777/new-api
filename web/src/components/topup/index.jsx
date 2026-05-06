@@ -39,6 +39,7 @@ import InvitationCard from './InvitationCard';
 import TransferModal from './modals/TransferModal';
 import PaymentConfirmModal from './modals/PaymentConfirmModal';
 import TopupHistoryModal from './modals/TopupHistoryModal';
+import SelfBillingCard from './SelfBillingCard';
 
 const TopUp = () => {
   const { t } = useTranslation();
@@ -836,6 +837,7 @@ const TopUp = () => {
           handleAffLinkClick={handleAffLinkClick}
         />
       </div>
+      <SelfBillingCard t={t} />
     </div>
   );
 };
