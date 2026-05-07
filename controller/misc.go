@@ -188,6 +188,10 @@ func GetAbout(c *gin.Context) {
 	return
 }
 
+func GetOpenSourceInfo(c *gin.Context) {
+	c.JSON(http.StatusOK, common.BuildOpenSourceInfo())
+}
+
 func GetUserAgreement(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,

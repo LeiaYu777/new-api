@@ -44,6 +44,7 @@ export const DEFAULT_ADMIN_CONFIG = {
     topup: true,
     myBilling: true,
     personal: true,
+    openSource: true,
   },
   admin: {
     enabled: true,

@@ -31,6 +31,7 @@ const Forbidden = lazy(() => import('./pages/Forbidden'));
 const LoginForm = lazy(() => import('./components/auth/LoginForm'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 const OAuth2Callback = lazy(() => import('./components/auth/OAuth2Callback'));
+const OpenSource = lazy(() => import('./pages/OpenSource'));
 const PasswordResetConfirm = lazy(
   () => import('./components/auth/PasswordResetConfirm'),
 );
@@ -391,6 +392,22 @@ function App() {
           element={
             <Suspense fallback={<Loading></Loading>} key={location.pathname}>
               <About />
+            </Suspense>
+          }
+        />
+        <Route
+          path='/about/open-source'
+          element={
+            <Suspense fallback={<Loading></Loading>} key={location.pathname}>
+              <OpenSource />
+            </Suspense>
+          }
+        />
+        <Route
+          path='/license'
+          element={
+            <Suspense fallback={<Loading></Loading>} key={location.pathname}>
+              <OpenSource />
             </Suspense>
           }
         />

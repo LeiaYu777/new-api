@@ -130,3 +130,61 @@ For request structs that are parsed from client JSON and then re-marshaled to up
   - field absent in client JSON => `nil` => omitted on marshal;
   - field explicitly set to zero/false => non-`nil` pointer => must still be sent upstream.
 - Avoid using non-pointer scalars with `omitempty` for optional request parameters, because zero values (`0`, `0.0`, `false`) will be silently dropped during marshal.
+
+# Lean Deployment Rules
+
+## Product Goal
+
+This modified version of New API targets a 2C4G single-server deployment.
+
+The lean version must keep:
+
+1. user/account management
+2. token/key management
+3. channel management
+4. OpenAI-compatible relay
+5. ByteDance / Volcengine model access through OpenAI-compatible or custom channels
+6. usage logs
+7. quota deduction
+8. account billing / invoice-related capability
+9. basic admin dashboard
+10. AGPLv3 license and source code access page
+
+## Hard Constraints
+
+1. Do not remove LICENSE.
+2. Do not remove AGPLv3 notices.
+3. Do not remove New API, QuantumNous, One API, copyright notices, logos, attribution, or original project references.
+4. Do not write API keys, customer data, billing data, database files, server secrets, or production .env files into the repository.
+5. Do not remove account, token, channel, log, quota, billing, authentication, or OpenAI-compatible relay functionality.
+6. Do not do large-scale deletion before APP_MODE=lean has been verified on a 2C4G server.
+7. Do not change default behavior for non-lean mode.
+8. Do not build Docker images on the 2C4G server unless explicitly requested.
+9. Prefer official prebuilt image for first deployment validation.
+10. Prefer SQLite single-container deployment for the first 2C4G validation.
+
+## Implementation Order
+
+Work must be done in this order:
+
+1. Validate official image + SQLite + single container.
+2. Add APP_MODE=lean and disable startup tasks/routes through configuration.
+3. Add Dockerfile.lean and avoid building classic frontend.
+4. Only after the above works, analyze and remove unnecessary dependencies.
+
+## Validation Requirements
+
+Every task must output:
+
+1. files changed
+2. commands run
+3. test results
+4. risks
+5. rollback instructions
+6. anything not completed
+
+## License Compliance
+
+The modified version must include a visible open-source license and source code access page.
+
+Do not claim full legal compliance or provide legal advice. The goal is to improve AGPLv3 transparency by preserving license notices and offering source code access to users.

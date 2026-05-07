@@ -76,6 +76,7 @@ import {
   Package,
   Server,
   CalendarClock,
+  FileText,
 } from 'lucide-react';
 import {
   SiAtlassian,
@@ -151,6 +152,8 @@ export function getLucideIcon(key, selected = false) {
       return <CalendarClock {...commonProps} color={iconColor} />;
     case 'setting':
       return <Settings {...commonProps} color={iconColor} />;
+    case 'openSource':
+      return <FileText {...commonProps} color={iconColor} />;
     default:
       return <CircleUser {...commonProps} color={iconColor} />;
   }

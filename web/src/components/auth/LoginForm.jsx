@@ -500,6 +500,17 @@ const LoginForm = () => {
     setInputs({ username: '', password: '', wechat_verification_code: '' });
   };
 
+  const renderOpenSourceLink = () => (
+    <div className='mt-5 text-center text-xs text-gray-500'>
+      <Link
+        to='/about/open-source'
+        className='text-blue-600 hover:text-blue-800 font-medium'
+      >
+        {t('开源许可证与源码获取')}
+      </Link>
+    </div>
+  );
+
   const renderOAuthOptions = () => {
     return (
       <div className='flex flex-col items-center'>
@@ -709,6 +720,7 @@ const LoginForm = () => {
                   </Text>
                 </div>
               )}
+              {renderOpenSourceLink()}
             </div>
           </Card>
         </div>
@@ -862,6 +874,7 @@ const LoginForm = () => {
                   </Text>
                 </div>
               )}
+              {renderOpenSourceLink()}
             </div>
           </Card>
         </div>

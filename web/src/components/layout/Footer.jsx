@@ -208,6 +208,13 @@ const FooterBar = () => {
             >
               New API
             </a>
+            <span className='!text-semi-color-text-2 mx-2'>|</span>
+            <a
+              href='/about/open-source'
+              className='!text-semi-color-primary font-medium'
+            >
+              {t('开源许可证与源码获取')}
+            </a>
           </div>
         </div>
       </footer>
@@ -233,6 +240,13 @@ const FooterBar = () => {
               className='!text-semi-color-primary font-medium'
             >
               New API
+            </a>
+            <span className='mx-1'>|</span>
+            <a
+              href='/about/open-source'
+              className='!text-semi-color-primary font-medium'
+            >
+              {t('开源许可证')}
             </a>
           </div>
         </div>

@@ -1,0 +1,35 @@
+This product is a modified version of New API.
+
+Original project:
+New API
+
+Original maintainer:
+QuantumNous
+
+Original license:
+GNU Affero General Public License v3.0
+
+Based on:
+One API, licensed under the MIT License.
+
+Modification notice:
+This repository contains modifications made by leia.
+Modified version: lean-2026.05
+Modified date: 2026-05-06
+
+Summary of modifications:
+2C4G lean deployment, startup task configuration, ByteDance/Volcengine model usage configuration, billing/account workflow customization.
+
+Source code availability:
+The corresponding source code of this modified version is available at:
+https://github.com/LeiaYu777/new-api
+
+If the source code URL is unavailable, please contact:
+lei.yu@qq.com
+
+This source code package does not include customer data, private user data, API keys, database passwords, production environment files, server credentials, or other secrets.
+
+No warranty:
+This program is provided under the GNU Affero General Public License v3.0, without warranty, unless otherwise agreed in writing.
+
+Do not remove original copyright notices, license notices, project attribution, or branding notices from New API unless a separate commercial license permits doing so.

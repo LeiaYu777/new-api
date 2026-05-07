@@ -1,0 +1,38 @@
+# New API 2C4G Phase 1: official image + SQLite + single container.
+# This compose file intentionally does not set SQL_DSN or REDIS_CONN_STRING.
+# It uses the official prebuilt image documented in README.md / README.zh_CN.md.
+
+services:
+  new-api:
+    image: calciumion/new-api:latest
+    container_name: new-api
+    restart: always
+    command: --log-dir /app/logs
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/data
+      - ./logs:/app/logs
+    environment:
+      - TZ=${TZ:-Asia/Shanghai}
+      - SESSION_SECRET=${SESSION_SECRET:-please-change-this}
+      - ERROR_LOG_ENABLED=${ERROR_LOG_ENABLED:-false}
+      - BATCH_UPDATE_ENABLED=${BATCH_UPDATE_ENABLED:-false}
+      - MEMORY_CACHE_ENABLED=${MEMORY_CACHE_ENABLED:-false}
+      - MAX_REQUEST_BODY_MB=${MAX_REQUEST_BODY_MB:-8}
+      - STREAM_SCANNER_MAX_BUFFER_MB=${STREAM_SCANNER_MAX_BUFFER_MB:-8}
+      - SQL_MAX_IDLE_CONNS=${SQL_MAX_IDLE_CONNS:-2}
+      - SQL_MAX_OPEN_CONNS=${SQL_MAX_OPEN_CONNS:-10}
+      - SQL_MAX_LIFETIME=${SQL_MAX_LIFETIME:-300}
+      - SOURCE_CODE_URL=${SOURCE_CODE_URL:-}
+      - LEGAL_CONTACT_EMAIL=${LEGAL_CONTACT_EMAIL:-}
+      - MODIFIER_NAME=${MODIFIER_NAME:-}
+      - MODIFIED_VERSION=${MODIFIED_VERSION:-}
+      - MODIFIED_DATE=${MODIFIED_DATE:-}
+      - MODIFICATION_SUMMARY=${MODIFICATION_SUMMARY:-Lean deployment validation with official image, SQLite, and single-container deployment.}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:3000/api/status | grep '\"success\"[[:space:]]*:[[:space:]]*true' >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s

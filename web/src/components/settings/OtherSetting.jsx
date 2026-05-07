@@ -18,6 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 
 import React, { useContext, useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Banner,
   Button,
@@ -417,6 +418,25 @@ const OtherSetting = () => {
             </Form.Section>
           </Card>
         </Form>
+        <Card style={{ marginTop: 12 }}>
+          <div className='flex flex-col md:flex-row md:items-center md:justify-between gap-3'>
+            <div>
+              <Text strong>{t('开源许可证与源码获取')}</Text>
+              <div className='mt-1'>
+                <Text type='tertiary'>
+                  {t(
+                    '展示 AGPLv3 许可证、原项目归属、修改说明和对应源码获取方式。',
+                  )}
+                </Text>
+              </div>
+            </div>
+            <Link to='/about/open-source'>
+              <Button theme='solid' type='primary'>
+                {t('查看源码获取说明')}
+              </Button>
+            </Link>
+          </div>
+        </Card>
         {/* 个性化设置 */}
         <Form
           values={inputs}

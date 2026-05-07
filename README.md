@@ -59,6 +59,26 @@
 > - Users must comply with OpenAI's [Terms of Use](https://openai.com/policies/terms-of-use) and **applicable laws and regulations**, and must not use it for illegal purposes
 > - According to the [《Interim Measures for the Management of Generative Artificial Intelligence Services》](http://www.cac.gov.cn/2023-07/13/c_1690898327029107.htm), please do not provide any unregistered generative AI services to the public in China.
 
+## 开源许可证与源码获取
+
+本项目是基于 New API 的修改版本。New API 使用 GNU Affero General Public License v3.0（AGPLv3）授权，并基于 One API（MIT License）开发。
+
+本修改版按照 AGPLv3 提供。所有通过网络与本系统交互的用户，均可通过系统中的“开源许可证与源码获取”页面获取本修改版的对应源码。
+
+源码获取地址由环境变量 `SOURCE_CODE_URL` 配置。
+
+源码不包含客户数据、API Key、数据库密码、生产环境 `.env` 文件、服务器密钥或其他敏感信息。
+
+## Open Source License and Source Code Access
+
+This repository is a modified version of New API. New API is licensed under the GNU Affero General Public License v3.0 (AGPLv3) and is based on One API, which is licensed under the MIT License.
+
+This modified version is provided under the AGPLv3. Users who interact with the running service over a computer network can use the in-product “Open Source License and Source Code Access” page to obtain the corresponding source code for this modified version.
+
+The source code URL is configured through the `SOURCE_CODE_URL` environment variable.
+
+The source code does not include customer data, API keys, database passwords, production `.env` files, server credentials, or other secrets.
+
 ---
 
 ## 🤝 Trusted Partners

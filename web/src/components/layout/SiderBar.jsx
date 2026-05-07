@@ -43,6 +43,7 @@ const routerMap = {
   log: '/console/log',
   midjourney: '/console/midjourney',
   setting: '/console/setting',
+  openSource: '/about/open-source',
   about: '/about',
   detail: '/console',
   pricing: '/pricing',
@@ -140,6 +141,11 @@ const SiderBar = ({ onNavigate = () => {} }) => {
         text: t('个人设置'),
         itemKey: 'personal',
         to: '/personal',
+      },
+      {
+        text: t('开源许可证'),
+        itemKey: 'openSource',
+        to: '/about/open-source',
       },
     ];
 

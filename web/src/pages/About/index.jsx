@@ -18,9 +18,10 @@ For commercial licensing, please contact support@quantumnous.com
 */
 
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { API, showError } from '../../helpers';
 import { marked } from 'marked';
-import { Empty } from '@douyinfe/semi-ui';
+import { Button, Card, Empty, Typography } from '@douyinfe/semi-ui';
 import {
   IllustrationConstruction,
   IllustrationConstructionDark,
@@ -135,6 +136,25 @@ const About = () => {
 
   return (
     <div className='mt-[60px] px-2'>
+      <Card className='mb-4 !rounded-xl'>
+        <div className='flex flex-col md:flex-row md:items-center md:justify-between gap-3'>
+          <div>
+            <Typography.Title heading={4} className='!mb-1'>
+              {t('开源许可证与源码获取')}
+            </Typography.Title>
+            <Typography.Text type='tertiary'>
+              {t(
+                '查看 AGPLv3 许可证、原项目归属、修改说明和对应源码获取方式。',
+              )}
+            </Typography.Text>
+          </div>
+          <Link to='/about/open-source'>
+            <Button theme='solid' type='primary'>
+              {t('查看源码获取说明')}
+            </Button>
+          </Link>
+        </div>
+      </Card>
       {aboutLoaded && about === '' ? (
         <div className='flex justify-center items-center h-screen p-8'>
           <Empty

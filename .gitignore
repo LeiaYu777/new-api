@@ -23,6 +23,17 @@ web/bun.lock
 plans
 .claude
 compliance/evidence/
+.env.*
+!.env.example
+!.env.lean.example
+*.sqlite
+*.sqlite3
+id_rsa
+id_ed25519
+*.pem
+*.key
+*.p12
+*.pfx
 
 electron/node_modules
 electron/dist
